@@ -53,6 +53,17 @@ class Psi4OperatorIntegralProvider:
     def nabla(self):
         return [-1.0 * np.asarray(comp) for comp in self.mints.ao_nabla()]
 
+    @property
+    def density_dependent_operators(self):
+        ret = {}
+        if hasattr(self.wfn, "pe_state"):
+            ret["pe_induction_elec"] = lambda dm: \
+                self.wfn.pe_state.get_pe_contribution(
+                    psi4.core.Matrix.from_array(dm.to_ndarray()),
+                    elec_only=True
+            )[1]
+        return ret
+
 
 class Psi4EriBuilder(EriBuilder):
     def __init__(self, wfn, n_orbs, n_orbs_alpha, n_alpha, n_beta, restricted):

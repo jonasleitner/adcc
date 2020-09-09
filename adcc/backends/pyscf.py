@@ -21,6 +21,7 @@
 ##
 ## ---------------------------------------------------------------------
 import numpy as np
+import warnings
 
 from libadcc import HartreeFockProvider
 from adcc.misc import cached_property
@@ -38,7 +39,12 @@ class PyScfOperatorIntegralProvider:
 
     @cached_property
     def electric_dipole(self):
-        return list(self.scfres.mol.intor_symmetric('int1e_r', comp=3))
+        if hasattr(self.scfres, "with_solvent"):
+            if self.scfres.with_solvent.eef:
+                warnings.warn("Using modified dipole operator due to EEF.")
+            return self.scfres.with_solvent.effective_dipole_operator()
+        else:
+            return list(self.scfres.mol.intor_symmetric('int1e_r', comp=3))
 
     @cached_property
     def magnetic_dipole(self):
@@ -54,6 +60,16 @@ class PyScfOperatorIntegralProvider:
             return list(
                 -1.0 * self.scfres.mol.intor('int1e_ipovlp', comp=3, hermi=2)
             )
+
+    @property
+    def density_dependent_operators(self):
+        ret = {}
+        if hasattr(self.scfres, "with_solvent"):
+            if isinstance(self.scfres.with_solvent, solvent.pol_embed.PolEmbed):
+                ret["pe_induction_elec"] = lambda dm: \
+                    self.scfres.with_solvent._exec_cppe(dm.to_ndarray(),
+                                                        elec_only=True)[1]
+        return ret
 
 
 # TODO: refactor ERI builder to be more general
