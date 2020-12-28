@@ -383,7 +383,7 @@ def libadcc_extension():
 
     # Keep track whether libtensor has been found
     found_libtensor = "tensorlight" in flags["libraries"]
-    lt_min_version = "2.9.9"
+    lt_min_version = "3.0.1"
 
     if not found_libtensor:
         if flags["search_system"]:  # Find libtensor on the OS using pkg-config
