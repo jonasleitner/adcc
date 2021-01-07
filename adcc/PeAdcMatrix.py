@@ -9,7 +9,8 @@ class PeAdcMatrix(AdcMatrix):
         tdm = OneParticleOperator(self.ground_state, is_symmetric=False)
         tdm.vo = in_ampl.ph.transpose()
         vpe = operators.density_dependent_operators["pe_induction_elec"](tdm)
-        out_ampl.ph += vpe.ov
+        # TODO: out_ampl.ph += does not seem to work?!
+        out_ampl['ph'] += vpe.ov
         return out_ampl
 
 
