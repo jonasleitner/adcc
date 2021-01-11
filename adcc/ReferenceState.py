@@ -155,7 +155,8 @@ class ReferenceState(libadcc.ReferenceState):
             self.orbital_coefficients, self.conv_tol
         )
 
-        for name in ["excitation_energy_corrections"]:
+        for name in ["excitation_energy_corrections",
+                     "gradient_provider"]:
             if hasattr(hfdata, name):
                 setattr(self, name, getattr(hfdata, name))
 
