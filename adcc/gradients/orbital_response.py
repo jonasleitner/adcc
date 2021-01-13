@@ -27,6 +27,80 @@ from adcc.functions import direct_sum, einsum, evaluate
 from adcc.solver.conjugate_gradient import conjugate_gradient, default_print
 
 
+def orbital_response_rhs(hf, g1a, g2a):
+    """
+    Build the right-hand side for solving the orbital
+    response given amplitude-relaxed density matrices (method-specific)
+    """
+    # TODO: only add non-zero blocks to equations!
+
+    # equal to the ov block of the energy-weighted density
+    # matrix when lambda_ov multipliers are zero
+    w_ov = 0.5 * (
+        + 1.0 * einsum("ijkl,klja->ia", hf.oooo, g2a.ooov)
+        # - 1.0 * einsum("ibcd,abcd->ia", hf.ovvv, g2a.vvvv)
+        - 1.0 * einsum("jkib,jkab->ia", hf.ooov, g2a.oovv)
+        + 2.0 * einsum("ijkb,jakb->ia", hf.ooov, g2a.ovov)
+        + 1.0 * einsum("ijbc,jabc->ia", hf.oovv, g2a.ovvv)
+        - 2.0 * einsum("ibjc,jcab->ia", hf.ovov, g2a.ovvv)
+    )
+    w_ov = w_ov.evaluate()
+
+    ret = -1.0 * (
+        2.0 * w_ov
+        # - 1.0 * einsum("klja,ijkl->ia", hf.ooov, g2a.oooo)
+        + 1.0 * einsum("abcd,ibcd->ia", hf.vvvv, g2a.ovvv)
+        - 2.0 * einsum("jakb,ijkb->ia", hf.ovov, g2a.ooov)
+        + 1.0 * einsum("jkab,jkib->ia", hf.oovv, g2a.ooov)
+        + 2.0 * einsum("jcab,ibjc->ia", hf.ovvv, g2a.ovov)
+        - 1.0 * einsum("jabc,ijbc->ia", hf.ovvv, g2a.oovv)
+        + 2.0 * einsum("jika,jk->ia", hf.ooov, g1a.oo)
+        + 2.0 * einsum("icab,bc->ia", hf.ovvv, g1a.vv)
+    )
+    return ret
+
+
+def energy_weighted_density_matrix(hf, g1o, g2a):
+    gi_oo = -0.5 * (
+        # + 1.0 * einsum("jklm,iklm->ij", hf.oooo, g2a.oooo)
+        + 1.0 * einsum("jabc,iabc->ij", hf.ovvv, g2a.ovvv)
+        + 1.0 * einsum("klja,klia->ij", hf.ooov, g2a.ooov)
+        + 2.0 * einsum("jkla,ikla->ij", hf.ooov, g2a.ooov)
+        + 1.0 * einsum("jkab,ikab->ij", hf.oovv, g2a.oovv)
+        + 2.0 * einsum("jakb,iakb->ij", hf.ovov, g2a.ovov)
+    )
+    gi_vv = -0.5 * (
+        + 1.0 * einsum("kjib,kjia->ab", hf.ooov, g2a.ooov)
+        # + einsum("bcde,acde->ab", hf.vvvv, g2a.vvvv)
+        + 1.0 * einsum("ijcb,ijca->ab", hf.oovv, g2a.oovv)
+        + 2.0 * einsum("jcib,jcia->ab", hf.ovov, g2a.ovov)
+        + 1.0 * einsum("ibcd,iacd->ab", hf.ovvv, g2a.ovvv)
+        + 2.0 * einsum("idcb,idca->ab", hf.ovvv, g2a.ovvv)
+    )
+    gi_oo = gi_oo.evaluate()
+    gi_vv = gi_vv.evaluate()
+    w = OneParticleOperator(hf)
+    w.ov = 0.5 * (
+        - 2.0 * einsum("ij,ja->ia", hf.foo, g1o.ov)
+        + 1.0 * einsum("ijkl,klja->ia", hf.oooo, g2a.ooov)
+        # - 1.0 * einsum("ibcd,abcd->ia", hf.ovvv, g2a.vvvv)
+        - 1.0 * einsum("jkib,jkab->ia", hf.ooov, g2a.oovv)
+        + 2.0 * einsum("ijkb,jakb->ia", hf.ooov, g2a.ovov)
+        + 1.0 * einsum("ijbc,jabc->ia", hf.oovv, g2a.ovvv)
+        - 2.0 * einsum("ibjc,jcab->ia", hf.ovov, g2a.ovvv)
+    )
+    w.oo = (
+        + gi_oo - hf.foo
+        - einsum("ik,jk->ij", g1o.oo, hf.foo)
+        - einsum("ikjl,kl->ij", hf.oooo, g1o.oo)
+        - einsum("ikja,ka->ij", hf.ooov, g1o.ov)
+        - einsum("jkia,ka->ij", hf.ooov, g1o.ov)
+        - einsum("jaib,ab->ij", hf.ovov, g1o.vv)
+    )
+    w.vv = gi_vv - einsum("ac,cb->ab", g1o.vv, hf.fvv)
+    return evaluate(w)
+
+
 class OrbitalResponseMatrix:
     def __init__(self, hf):
         if hf.has_core_occupied_space:
@@ -83,6 +157,7 @@ def orbital_response(hf, rhs):
     Solves the orbital response equations
     for a given reference state and right-hand side
     """
+    # TODO: solver arguments
     A = OrbitalResponseMatrix(hf)
     Pinv = OrbitalResponsePinv(hf)
     x0 = (Pinv @ rhs).evaluate()

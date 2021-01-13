@@ -26,7 +26,7 @@ import libadcc
 import adcc.block as b
 from adcc.MoSpaces import split_spaces
 from adcc.Tensor import Tensor
-from adcc.functions import evaluate, einsum
+from adcc.functions import einsum
 
 
 class TwoParticleDensityMatrix:
@@ -229,30 +229,15 @@ class TwoParticleDensityMatrix:
             raise TypeError("Argument type not supported.")
 
     def __iadd__(self, other):
-        raise NotImplementedError()
         if self.mospaces != other.mospaces:
-            raise ValueError("Cannot add OneParticleOperators with "
+            raise ValueError("Cannot add TwoParticleDensityMatrices with "
                              "differing mospaces.")
-        if self.is_symmetric and not other.is_symmetric:
-            raise ValueError("Cannot add non-symmetric matrix "
-                             "in-place to symmetric one.")
 
         for bl in other.blocks_nonzero:
-            if self.is_zero_block(b):
+            if self.is_zero_block(bl):
                 self[bl] = other.block(bl).copy()
             else:
                 self[bl] = self.block(bl) + other.block(bl)
-
-        if not self.is_symmetric and other.is_symmetric:
-            for bl in other.blocks_nonzero:
-                if bl[:2] == bl[2:]:
-                    continue  # Done already
-                brev = bl[2:] + bl[:2]  # Reverse block
-
-                obT = other.block(bl).transpose()
-                if not self.is_zero_block(brev):
-                    obT += self.block(brev)
-                self[brev] = evaluate(obT)
 
         # Update ReferenceState pointer
         if hasattr(self, "reference_state"):
@@ -262,30 +247,15 @@ class TwoParticleDensityMatrix:
         return self
 
     def __isub__(self, other):
-        raise NotImplementedError()
         if self.mospaces != other.mospaces:
             raise ValueError("Cannot subtract OneParticleOperators with "
                              "differing mospaces.")
-        if self.is_symmetric and not other.is_symmetric:
-            raise ValueError("Cannot subtract non-symmetric matrix "
-                             "in-place from symmetric one.")
 
         for bl in other.blocks_nonzero:
-            if self.is_zero_block(b):
+            if self.is_zero_block(bl):
                 self[bl] = -1.0 * other.block(bl)  # The copy is implicit
             else:
                 self[bl] = self.block(bl) - other.block(bl)
-
-        if not self.is_symmetric and other.is_symmetric:
-            for bl in other.blocks_nonzero:
-                if bl[:2] == bl[2:]:
-                    continue  # Done already
-                brev = bl[2:] + bl[:2]  # Reverse block
-
-                obT = -1.0 * other.block(bl).transpose()
-                if not self.is_zero_block(brev):
-                    obT += self.block(brev)
-                self[brev] = evaluate(obT)
 
         # Update ReferenceState pointer
         if hasattr(self, "reference_state"):
@@ -302,25 +272,15 @@ class TwoParticleDensityMatrix:
         return self
 
     def __add__(self, other):
-        raise NotImplementedError()
-        if not self.is_symmetric or other.is_symmetric:
-            return self.copy().__iadd__(other)
-        else:
-            return other.copy().__iadd__(self)
+        return self.copy().__iadd__(other)
 
     def __sub__(self, other):
-        raise NotImplementedError()
-        if not self.is_symmetric or other.is_symmetric:
-            return self.copy().__isub__(other)
-        else:
-            return (-1.0 * other).__iadd__(self)
+        return self.copy().__isub__(other)
 
     def __mul__(self, other):
-        raise NotImplementedError()
         return self.copy().__imul__(other)
 
     def __rmul__(self, other):
-        raise NotImplementedError()
         return self.copy().__imul__(other)
 
     def evaluate(self):
