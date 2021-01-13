@@ -56,12 +56,8 @@ class TwoParticleDensityMatrix:
             == self.mospaces.n_orbs("f")
         # set the canonical blocks explicitly
         self.blocks = [
-            b.oooo,
-            b.ooov,
-            b.oovv,
-            b.ovov,
-            b.ovvv,
-            b.vvvv,
+            b.oooo, b.ooov, b.oovv,
+            b.ovov, b.ovvv, b.vvvv,
         ]
         self._tensors = {}
 
@@ -215,7 +211,7 @@ class TwoParticleDensityMatrix:
         with two-electron integrals.
         ALL coefficients are already accounted for in the density matrix.
         Two blocks are returned, the first one needs to be contracted with
-        pqrs, the second one with -pqsr.
+        prqs, the second one with -psqr (in Chemists' notation).
         """
         if isinstance(refstate_or_coefficients, (dict, libadcc.ReferenceState)):
             return self.__transform_to_ao(refstate_or_coefficients)

@@ -157,7 +157,7 @@ def orbital_response(hf, rhs):
     Solves the orbital response equations
     for a given reference state and right-hand side
     """
-    # TODO: solver arguments
+    # TODO: pass solver arguments
     A = OrbitalResponseMatrix(hf)
     Pinv = OrbitalResponsePinv(hf)
     x0 = (Pinv @ rhs).evaluate()

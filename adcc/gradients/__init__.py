@@ -20,6 +20,8 @@
 ## along with adcc. If not, see <http://www.gnu.org/licenses/>.
 ##
 ## ---------------------------------------------------------------------
+import numpy as np
+
 from adcc.LazyMp import LazyMp
 from adcc.Excitation import Excitation
 from adcc.timings import Timer
@@ -40,7 +42,8 @@ class NuclearGradientResult:
     @property
     def relaxed_dipole_moment(self):
         elec_dip = -1.0 * np.array(
-            [product_trace(self.g1, dip) for dip in self.hf.operators.electric_dipole]
+            [product_trace(self.g1, dip)
+             for dip in self.hf.operators.electric_dipole]
         )
         return self.hf.nuclear_dipole + elec_dip
 
@@ -77,13 +80,13 @@ def nuclear_gradient(excitation_or_mp):
         delta_ij = hf.density.oo
         g2_hf = TwoParticleDensityMatrix(hf)
         g2_hf.oooo = 0.25 * (- einsum("li,jk->ijkl", delta_ij, delta_ij)
-                            + einsum("ki,jl->ijkl", delta_ij, delta_ij))
+                             + einsum("ki,jl->ijkl", delta_ij, delta_ij))
 
         g2_oresp = TwoParticleDensityMatrix(hf)
         g2_oresp.oooo = einsum("ij,kl->kilj", delta_ij, g1o.oo)
         g2_oresp.ovov = einsum("ij,ab->iajb", delta_ij, g1o.vv)
         g2_oresp.ooov = (- einsum("kj,ia->ijka", delta_ij, g1o.ov)
-                        + einsum("ki,ja->ijka", delta_ij, g1o.ov))
+                         + einsum("ki,ja->ijka", delta_ij, g1o.ov))
 
         # scale for contraction with integrals
         g2a.oovv *= 0.5

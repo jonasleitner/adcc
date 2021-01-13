@@ -75,7 +75,7 @@ class PyScfGradientProvider:
             ERIx_a = np.zeros_like(ERIx)
             ERIx_a[:, k0:k1] = ERIx[:, k0:k1]
             ERIx_a += (
-                + ERIx_a.transpose(0, 2, 1, 4, 3) 
+                + ERIx_a.transpose(0, 2, 1, 4, 3)
                 + ERIx_a.transpose(0, 3, 4, 1, 2)
                 + ERIx_a.transpose(0, 4, 3, 2, 1)
             )
