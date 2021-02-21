@@ -102,14 +102,14 @@ def main():
     }
     basissets = [
         "sto3g",
-        "ccpvdz"
+        "ccpvdz",
     ]
     methods = [
         "mp2",
         "adc1",
         "adc2",
     ]
-    molecules = ["h2o"]
+    molecules = ["h2o", "hf", "formaldehyde"]
     ret = {}
     for molecule in molecules:
         ret[molecule] = {}
