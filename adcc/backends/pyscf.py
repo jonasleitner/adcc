@@ -21,7 +21,6 @@
 ##
 ## ---------------------------------------------------------------------
 import numpy as np
-import warnings
 
 from libadcc import HartreeFockProvider
 from adcc.misc import cached_property

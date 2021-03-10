@@ -50,7 +50,8 @@ class AdcMatrix(AdcMatrixlike):
         "adc3":  dict(ph_ph=3, ph_pphh=2,    pphh_ph=2,    pphh_pphh=1),     # noqa: E501
     }
 
-    def __init__(self, method, hf_or_mp, block_orders=None, intermediates=None):
+    def __init__(self, method, hf_or_mp, block_orders=None, intermediates=None,
+                 solvent_block=None):
         """
         Initialise an ADC matrix.
 
@@ -65,6 +66,9 @@ class AdcMatrix(AdcMatrixlike):
             If not set, defaults according to the selected ADC method are chosen.
         intermediates : adcc.Intermediates or NoneType
             Allows to pass intermediates to re-use to this class.
+        solvent_block: callable
+            Function to construct an AdcBlock responsible for
+            coupling to a solvent model
         """
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
@@ -124,6 +128,14 @@ class AdcMatrix(AdcMatrixlike):
                                   if bl.diagonal)
             self.__diagonal.evaluate()
             self.__init_space_data(self.__diagonal)
+
+        if solvent_block is not None:
+            if not callable(solvent_block):
+                raise TypeError("solvent_block needs to be"
+                                " a callable.")
+            self.blocks_ph["solvent"] = solvent_block(
+                self.reference_state, self.ground_state, self.intermediates
+            )
 
     def __init_space_data(self, diagonal):
         """Update the cached data regarding the spaces of the ADC matrix"""

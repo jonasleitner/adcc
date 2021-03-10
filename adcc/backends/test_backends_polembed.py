@@ -96,9 +96,6 @@ class TestPolarizableEmbedding(unittest.TestCase):
                                    pe_options=pe_options)
         assert_allclose(scfres.energy_scf, tm_result["energy_scf"], atol=1e-8)
 
-        # construct a normal ADC matrix
-        matrix = adcc.AdcMatrix(method, scfres)
-
         # additional matrix apply for PE
         def block_ph_ph_0_pe(hf, mp, intermediates):
             op = hf.operators
@@ -110,12 +107,7 @@ class TestPolarizableEmbedding(unittest.TestCase):
                 return AmplitudeVector(ph=vpe.ov)
             return AdcBlock(apply, 0)
 
-        # register the additional function with the matrix
-        # this should be implemented in the AdcMatrix ctor
-        # (to also get all the diagonal setup right)
-        matrix.blocks_ph['ph_ph_pe'] = block_ph_ph_0_pe(
-            matrix.reference_state, matrix.ground_state, matrix.intermediates
-        )
+        matrix = adcc.AdcMatrix(method, scfres, solvent_block=block_ph_ph_0_pe)
         assert_allclose(
             matrix.ground_state.energy(2),
             tm_result["energy_mp2"],
