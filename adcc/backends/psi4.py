@@ -29,6 +29,7 @@ import psi4
 
 from .EriBuilder import EriBuilder
 from ..exceptions import InvalidReference
+from ..ExcitedStates import EnergyCorrection
 
 
 class Psi4OperatorIntegralProvider:
@@ -54,15 +55,14 @@ class Psi4OperatorIntegralProvider:
         return [-1.0 * np.asarray(comp) for comp in self.mints.ao_nabla()]
 
     @property
-    def density_dependent_operators(self):
-        ret = {}
+    def pe_induction_elec(self):
         if hasattr(self.wfn, "pe_state"):
-            ret["pe_induction_elec"] = lambda dm: \
-                self.wfn.pe_state.get_pe_contribution(
+            def pe_induction_elec_ao(dm):
+                return self.wfn.pe_state.get_pe_contribution(
                     psi4.core.Matrix.from_array(dm.to_ndarray()),
                     elec_only=True
-            )[1]
-        return ret
+                )[1]
+            return pe_induction_elec_ao
 
 
 class Psi4EriBuilder(EriBuilder):
@@ -109,11 +109,26 @@ class Psi4HFProvider(HartreeFockProvider):
     @property
     def excitation_energy_corrections(self):
         ret = {}
+        if self.environment == "pe":
+            ptlr = EnergyCorrection(
+                "pe_ptlr_correction",
+                lambda view: 2.0 * self.pe_energy(view.transition_dm_ao,
+                                                  elec_only=True)
+            )
+            ptss = EnergyCorrection(
+                "pe_ptss_correction",
+                lambda view: self.pe_energy(view.state_diffdm_ao,
+                                            elec_only=True)
+            )
+            ret["pe_ptlr_correction"] = ptlr
+            ret["pe_ptss_correction"] = ptss
+        return ret
+
+    @property
+    def environment(self):
+        ret = None
         if hasattr(self.wfn, "pe_state"):
-            ret["pe_ptlr_correction"] = lambda view: \
-                2.0 * self.pe_energy(view.transition_dm_ao, elec_only=True)
-            ret["pe_ptss_correction"] = lambda view: \
-                self.pe_energy(view.state_diffdm_ao, elec_only=True)
+            ret = "pe"
         return ret
 
     def get_backend(self):
