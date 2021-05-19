@@ -208,12 +208,12 @@ class ExcitedStates(ElectronicTransition):
             for k in other:
                 self += k
         else:
-            raise TypeError("Can only add EnergyCorrection (or list"
-                            " of EnergyCorrection) to"
-                            f" ExcitedState, not '{type(other)}'")
+            return NotImplemented
         return self
 
     def __add__(self, other):
+        if not isinstance(other, (EnergyCorrection, list)):
+            return NotImplemented
         ret = ExcitedStates(self, self.method, self.property_method)
         ret += other
         return ret
