@@ -522,7 +522,7 @@ def setup_environment(matrix, environment):
         raise InputError(
             "Environment found in reference state, but no environment"
             " configuration specified. Please select from the following"
-            f" schemes: {valid_envs}."
+            f" schemes: {valid_envs} or set to False."
         )
     elif environment and not hf.environment:
         raise InputError(
@@ -530,7 +530,7 @@ def setup_environment(matrix, environment):
             " was found in reference state."
         )
     elif not hf.environment:
-        environment = False
+        environment = {}
 
     if isinstance(environment, bool):
         environment = {"ptss": True, "ptlr": True} if environment else {}
