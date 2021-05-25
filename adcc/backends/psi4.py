@@ -116,7 +116,7 @@ class Psi4HFProvider(HartreeFockProvider):
 
     @property
     def excitation_energy_corrections(self):
-        ret = {}
+        ret = []
         if self.environment == "pe":
             ptlr = EnergyCorrection(
                 "pe_ptlr_correction",
@@ -128,8 +128,8 @@ class Psi4HFProvider(HartreeFockProvider):
                 lambda view: self.pe_energy(view.state_diffdm_ao,
                                             elec_only=True)
             )
-            ret["pe_ptlr_correction"] = ptlr
-            ret["pe_ptss_correction"] = ptss
+            ret.extend([ptlr, ptss])
+        ret = {ec.name: ec for ec in ret}
         return ret
 
     @property
