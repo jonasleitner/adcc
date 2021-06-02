@@ -25,6 +25,9 @@ import itertools
 import adcc
 import adcc.backends
 
+from adcc.adc_pp.matrix import AdcBlock
+from adcc import OneParticleOperator, AmplitudeVector
+
 from numpy.testing import assert_allclose
 
 import pytest
