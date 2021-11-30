@@ -81,8 +81,27 @@ class Psi4EriBuilder(EriBuilder):
         }
 
     def compute_mo_eri(self, blocks, spins):
+        # need to somehow import eri in AO basis... but how and where to split blockwhise?
         coeffs = tuple(self.coefficients[blocks[i] + spins[i]] for i in range(4))
-        return np.asarray(self.mints.mo_eri(*coeffs))
+        print(f"eri blocks: {blocks}, spins: {spins}")
+        eri_mo = np.asarray(self.mints.mo_eri(*coeffs))
+        print(eri_mo)
+        return eri_mo
+
+    def compute_mo_eri_new(self, blocks, spins, fromslices):
+        coeffs = tuple(self.coefficients[blocks[i] + spins[i]] for i in range(4))
+        slices = []
+        for idx, b in enumerate(blocks):
+            if b == "O":
+                slices.append(slice(0, self.n_alpha))
+            elif b == "V":
+                slices.append(slice(self.n_alpha, self.n_alpha + fromslices[idx].stop))
+        slices = tuple(slices)
+        print(f"adjusted virtual slices: {slices}")
+        eri_ao = np.asarray(self.mints.ao_eri(psi4.core.IntegralFactory(self.wfn.basisset())))[slices]
+        print("eri in backend")
+        print(eri_ao)
+        return eri_ao
 
 
 class Psi4HFProvider(HartreeFockProvider):
@@ -187,9 +206,21 @@ class Psi4HFProvider(HartreeFockProvider):
         out[:] = np.hstack((orben_a, orben_b))
 
     def fill_fock_ff(self, slices, out):
-        diagonal = np.empty(self.n_orbs)
-        self.fill_orben_f(diagonal)
-        out[:] = np.diag(diagonal)[slices]
+        #diagonal = np.empty(self.n_orbs)
+        #self.fill_orben_f(diagonal)
+        #out[:] = np.diag(diagonal)[slices]
+        fock_a = np.asarray(self.wfn.Fa())
+        fock_b = np.asarray(self.wfn.Fb())
+        print(f"non orthogonal AO:\n{np.hstack((fock_a, fock_b))[slices]}")
+        U = self.orthogonalize_AO()
+        fock_a = np.transpose(U) @ fock_a @ U
+        fock_b = np.transpose(U) @ fock_b @ U
+        fock = (fock_a, fock_b)
+        out[:] = np.hstack((fock[0], fock[1]))[slices]
+        print("Import of a Fock Matrix block (orthogonal AO):")
+        print(np.shape(out))
+        print(slices)
+        print(out)
 
     def fill_eri_ffff(self, slices, out):
         self.eri_builder.fill_slice_symm(slices, out)
@@ -202,6 +233,13 @@ class Psi4HFProvider(HartreeFockProvider):
 
     def flush_cache(self):
         self.eri_builder.flush_cache()
+
+    def orthogonalize_AO():
+        S = self.wfn.S().to_array()
+        s, U = np.linalg.eig(S)
+        s_12 = s ** -0.5
+        X = U @ np.diag(s_12) @ np.transpose(U)
+        return X
 
 
 def import_scf(wfn):

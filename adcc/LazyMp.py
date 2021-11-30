@@ -66,8 +66,60 @@ class LazyMp:
         return direct_sum("-i+a->ia", fC, fv)
 
     @cached_member_function
+    def t2_iterative(self, space):
+        """iterative T2 amplitudes through minimization
+           of the Hylleraas functional"""
+        print("Computing iterative T2 amplitudes")
+        print(f"space for t2 amplitudes: {space}")
+        hf = self.reference_state
+        print(f"foo:\n{hf.foo.to_ndarray()}")
+        print(f"fov:\n{hf.fov.to_ndarray()}")
+        print(f"fvv:\n{hf.fvv.to_ndarray()}")
+        sp = split_spaces(space)
+        assert all(s == b.v for s in sp[2:])
+        eia = self.df(sp[0] + b.v)
+        ejb = self.df(sp[1] + b.v)
+        # why symmetrising the denominator?
+        # for numerical reasons?
+        # but then why only two indices?
+        delta = direct_sum("ia+jb->ijab", eia, ejb)#.symmetrise((2,3))
+        # start with 1/delta as guess for the amplitudes
+        # t2_amp = libadcc.Tensor.ones_like(delta)/delta
+        t2_amp = libadcc.Tensor.ones_like(delta)
+        delta = delta.symmetrise((2,3))
+        print(f"eri(space):\n{hf.eri(space)}")
+        print(f"starting guess:\n{t2_amp}")
+        # use counter to limit iterations? or just iterate until converged?
+        maxiter = 10
+        conv_tol = 1e-7 # or whatever is appropriate
+        print("iteration, residue norm")
+        for i in range(maxiter):
+            # sum_c(t_ijac f_bc - t_ijbc f_ac)
+            i1 = 2.0  * einsum("ijac,bc->ijab", t2_amp, hf.fvv).antisymmetrise((2,3))
+            # sum_k(t_jkab f_ki - t_ikab f_kj)
+            i2 = 2.0 * einsum("jkab,ki->ijab", t2_amp, hf.foo).antisymmetrise((0,1))
+            # why dividing through denominator?
+            # residue = (i1 + i2 - hf.eri(space)) / delta
+            residue = i1 + i2 - hf.eri(space)
+            print(f"i1 =\n{i1}\ni2 =\n{i2}\nresidue =\n{residue}")
+            # add residue to t2_amplutides
+            print(f"old t2_amp =\n{t2_amp}")
+            t2_amp += residue
+            print(f"new t2_amp =\n{t2_amp}")
+            # compute the norm of the residue
+            norm = np.sqrt(einsum("ijab,ijab->", residue, residue))
+            print(f"{i+1}         {norm}")
+            if norm < conv_tol:
+                break
+            elif norm > 1e15:
+                break
+        return t2_amp
+
+
+    @cached_member_function
     def t2(self, space):
         """T2 amplitudes"""
+        print("Computing canonical T2 amplitudes")
         hf = self.reference_state
         sp = split_spaces(space)
         assert all(s == b.v for s in sp[2:])

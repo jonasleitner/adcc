@@ -73,6 +73,12 @@ class EriBuilder:
         Split tuple of four slices into the block spin slices
         and their mapping to where elements are to be placed
         """
+        #print(f"\nsplit_4d_slices input: {slices}")
+        #print("result of 1d_split:")
+        #for sl in slices:
+        #    print(self.split_1d_slice(sl))
+        #print("product:")
+        #print(list(product(*(self.split_1d_slice(sl) for sl in slices))))
         return [SpinBlockSlice(tpl[0][0] + tpl[1][0] + tpl[2][0] + tpl[3][0],
                                tpl[0][1] + tpl[1][1] + tpl[2][1] + tpl[3][1],
                                (tpl[0][2], tpl[1][2], tpl[2][2], tpl[3][2]),
@@ -126,9 +132,11 @@ class EriBuilder:
             if cache_key in self.eri_cache:
                 eri = self.eri_cache[cache_key]
             else:
+                #eri = self.compute_mo_eri_new(blocks, spins, fromslices)
                 eri = self.compute_mo_eri(blocks, spins)
                 self.eri_cache[cache_key] = eri
-
+            #print(f"fromslice: {fromslices}, toslice: {toslices}")
+            #print(f"eri[fromslices]: \n{eri[fromslices]}")
             out[toslices] = eri[fromslices]
 
     def flush_cache(self):
