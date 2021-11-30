@@ -21,6 +21,7 @@
 ##
 ## ---------------------------------------------------------------------
 import numpy as np
+from numpy.testing._private.utils import assert_allclose
 
 from libadcc import HartreeFockProvider
 from adcc.misc import cached_property
@@ -66,42 +67,91 @@ class Psi4OperatorIntegralProvider:
 
 
 class Psi4EriBuilder(EriBuilder):
-    def __init__(self, wfn, n_orbs, n_orbs_alpha, n_alpha, n_beta, restricted):
+    def __init__(self, wfn, n_orbs, n_orbs_alpha, n_alpha, n_beta, restricted,
+                 unitary):
         self.wfn = wfn
         self.mints = psi4.core.MintsHelper(self.wfn)
+        self.u = unitary
         super().__init__(n_orbs, n_orbs_alpha, n_alpha, n_beta, restricted)
 
     @property
-    def coefficients(self):
+    def coefficients_new(self):
+        u = self.u
+        U = {}
+        for spin in ["a", "b"]:
+            U[spin] = np.block([
+                [u[spin]["oo"], np.zeros((u["o" + spin], u["v" + spin]))],
+                [np.zeros((u["v" + spin], u["o" + spin])), u[spin]["vv"]]
+            ])
+            assert_allclose(np.identity(u["o" + spin] + u["v" + spin]),
+                            U[spin].T @ U[spin], atol=1e-15)
+
+        occ_a = psi4.core.Matrix(u["oa"] + u["va"], u["oa"])
+        virt_a = psi4.core.Matrix(u["oa"] + u["va"], u["va"])
         return {
-            "Oa": self.wfn.Ca_subset("AO", "OCC"),
-            "Ob": self.wfn.Cb_subset("AO", "OCC"),
-            "Va": self.wfn.Ca_subset("AO", "VIR"),
-            "Vb": self.wfn.Cb_subset("AO", "VIR"),
+            "Oa": occ_a.from_array(U["a"][:, :u["oa"]]),
+            "Ob": None,  # self.wfn.Cb_subset("AO", "OCC"),
+            "Va": virt_a.from_array(U["a"][:, u["oa"]:]),
+            "Vb": None  # self.wfn.Cb_subset("AO", "VIR"),
+        }
+
+    @property
+    def coefficients(self):
+        u = self.u
+        U = {}
+        for spin in ["a", "b"]:
+            U[spin] = np.block([
+                [u[spin]["oo"], np.zeros((u["o" + spin], u["v" + spin]))],
+                [np.zeros((u["v" + spin], u["o" + spin])), u[spin]["vv"]]
+            ])
+            assert_allclose(np.identity(u["o" + spin] + u["v" + spin]),
+                            U[spin].T @ U[spin], atol=1e-15)
+        return {
+            "Oa": [self.wfn.Ca_subset("AO", "OCC"), U["a"][:, :u["oa"]]],
+            "Ob": [self.wfn.Cb_subset("AO", "OCC")],
+            "Va": [self.wfn.Ca_subset("AO", "VIR"), U["a"][:, u["oa"]:]],
+            "Vb": [self.wfn.Cb_subset("AO", "VIR")],
         }
 
     def compute_mo_eri(self, blocks, spins):
-        # need to somehow import eri in AO basis... but how and where to split blockwhise?
-        coeffs = tuple(self.coefficients[blocks[i] + spins[i]] for i in range(4))
-        print(f"eri blocks: {blocks}, spins: {spins}")
+        print(f"import MO ERI of block {blocks} and spin {spins}")
+        # something is wrong here... probably in coefficients_new
+        # or I can't use the mo_eri function
+        coeffs = tuple(
+            self.coefficients[blocks[i] + spins[i]][0] for i in range(4)
+        )
+        # print(f"eri blocks: {blocks}, spins: {spins}")
         eri_mo = np.asarray(self.mints.mo_eri(*coeffs))
-        print(eri_mo)
+        print(f"eri block shape: {eri_mo.shape}")
+
+        # transform mo eri with the unitary matrix
+        unitary = tuple(
+            self.coefficients[blocks[i] + spins[i]][1] for i in range(4)
+        )
+        for i in range(4):
+            print(unitary[i].shape)
+        eri_mo = np.einsum("up,vq,uvol,or,ls->pqrs",
+                           unitary[0].T,
+                           unitary[1].T, eri_mo,
+                           unitary[2],
+                           unitary[3])
+        print(f"transformed eri block shape: {eri_mo.shape}")
         return eri_mo
 
     def compute_mo_eri_new(self, blocks, spins, fromslices):
-        coeffs = tuple(self.coefficients[blocks[i] + spins[i]] for i in range(4))
+        print(f"import MO ERI of block {blocks} and spin {spins}")
         slices = []
         for idx, b in enumerate(blocks):
             if b == "O":
-                slices.append(slice(0, self.n_alpha))
+                slices.append(fromslices[idx])
             elif b == "V":
-                slices.append(slice(self.n_alpha, self.n_alpha + fromslices[idx].stop))
+                slices.append(slice(
+                    self.n_alpha, self.n_alpha + fromslices[idx].stop
+                ))
         slices = tuple(slices)
+        print(f"original slices: {fromslices}")
         print(f"adjusted virtual slices: {slices}")
-        eri_ao = np.asarray(self.mints.ao_eri(psi4.core.IntegralFactory(self.wfn.basisset())))[slices]
-        print("eri in backend")
-        print(eri_ao)
-        return eri_ao
+        return None
 
 
 class Psi4HFProvider(HartreeFockProvider):
@@ -114,9 +164,10 @@ class Psi4HFProvider(HartreeFockProvider):
         # otherwise weird errors result
         super().__init__()
         self.wfn = wfn
+        self.unitary = self.random_unitary()
         self.eri_builder = Psi4EriBuilder(self.wfn, self.n_orbs, self.wfn.nmo(),
                                           wfn.nalpha(), wfn.nbeta(),
-                                          self.restricted)
+                                          self.restricted, self.unitary)
         self.operator_integral_provider = Psi4OperatorIntegralProvider(self.wfn)
 
     def pe_energy(self, dm, elec_only=True):
@@ -206,21 +257,33 @@ class Psi4HFProvider(HartreeFockProvider):
         out[:] = np.hstack((orben_a, orben_b))
 
     def fill_fock_ff(self, slices, out):
-        #diagonal = np.empty(self.n_orbs)
-        #self.fill_orben_f(diagonal)
-        #out[:] = np.diag(diagonal)[slices]
-        fock_a = np.asarray(self.wfn.Fa())
-        fock_b = np.asarray(self.wfn.Fb())
-        print(f"non orthogonal AO:\n{np.hstack((fock_a, fock_b))[slices]}")
-        U = self.orthogonalize_AO()
-        fock_a = np.transpose(U) @ fock_a @ U
-        fock_b = np.transpose(U) @ fock_b @ U
-        fock = (fock_a, fock_b)
-        out[:] = np.hstack((fock[0], fock[1]))[slices]
-        print("Import of a Fock Matrix block (orthogonal AO):")
-        print(np.shape(out))
-        print(slices)
-        print(out)
+        u = self.unitary
+
+        diagonal = np.empty(self.n_orbs)
+        U = {}
+        self.fill_orben_f(diagonal)
+        # out[:] = np.diag(diagonal)[slices]
+        # build individual blocks
+        U["oo"] = np.block([
+            [u["a"]["oo"], np.zeros((u["oa"], u["ob"]))],
+            [np.zeros((u["ob"], u["oa"])), u["b"]["oo"]]
+        ])
+        U["vv"] = np.block([
+            [u["a"]["vv"], np.zeros((u["va"], u["vb"]))],
+            [np.zeros((u["vb"], u["va"])), u["b"]["vv"]]
+        ])
+        U["ov"] = np.zeros((u["oa"] + u["ob"], u["va"] + u["vb"]))
+        U["vo"] = np.zeros((u["va"] + u["vb"], u["oa"] + u["ob"]))
+
+        # build total matrix
+        U = np.block([
+            [U["oo"], U["ov"]],
+            [U["vo"], U["vv"]]
+        ])
+        assert_allclose(np.identity(U.shape[0]), U.T @ U, atol=1e-15)
+        out[:] = (U.T @ np.diag(diagonal) @ U)[slices]
+        print("Import of a Fock Matrix block:")
+        print(f"shape: {np.shape(out)}, slices: {slices}")
 
     def fill_eri_ffff(self, slices, out):
         self.eri_builder.fill_slice_symm(slices, out)
@@ -234,12 +297,29 @@ class Psi4HFProvider(HartreeFockProvider):
     def flush_cache(self):
         self.eri_builder.flush_cache()
 
-    def orthogonalize_AO():
+    def orthogonalize_AO(self):
         S = self.wfn.S().to_array()
         s, U = np.linalg.eig(S)
         s_12 = s ** -0.5
         X = U @ np.diag(s_12) @ np.transpose(U)
         return X
+
+    def random_unitary(self):
+        from scipy.stats import ortho_group
+        U = {'a': {}, 'b': {}}
+        U["oa"] = oa = self.wfn.nalpha()
+        U["ob"] = ob = self.wfn.nbeta()
+        U["va"] = va = self.wfn.basisset().nbf() - oa
+        U["vb"] = vb = self.wfn.basisset().nbf() - ob
+
+        # scheint ein Problem mit dem guess zu geben, wenn nur ein occ orbital
+        # vorhanden ist... produziert random ergebnisse,
+        # die manchmal aber korrekt sind.
+        U["a"]["oo"] = ortho_group.rvs(oa) if oa > 1 else 1
+        U["a"]["vv"] = ortho_group.rvs(va) if va > 1 else 1
+        U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
+        U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
+        return U
 
 
 def import_scf(wfn):
