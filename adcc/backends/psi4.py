@@ -97,30 +97,21 @@ class Psi4EriBuilder(EriBuilder):
 
     @property
     def coefficients(self):
-        u = self.u
-        U = {}
-        for spin in ["a", "b"]:
-            U[spin] = np.block([
-                [u[spin]["oo"], np.zeros((u["o" + spin], u["v" + spin]))],
-                [np.zeros((u["v" + spin], u["o" + spin])), u[spin]["vv"]]
-            ])
-            assert_allclose(np.identity(u["o" + spin] + u["v" + spin]),
-                            U[spin].T @ U[spin], atol=1e-15)
         return {
-            "Oa": [self.wfn.Ca_subset("AO", "OCC"), U["a"][:, :u["oa"]]],
-            "Ob": [self.wfn.Cb_subset("AO", "OCC")],
-            "Va": [self.wfn.Ca_subset("AO", "VIR"), U["a"][:, u["oa"]:]],
-            "Vb": [self.wfn.Cb_subset("AO", "VIR")],
+            "Oa": [self.wfn.Ca_subset("AO", "OCC"), self.u["a"]["oo"]],
+            "Ob": [self.wfn.Cb_subset("AO", "OCC"), self.u["b"]["oo"]],
+            "Va": [self.wfn.Ca_subset("AO", "VIR"), self.u["a"]["vv"]],
+            "Vb": [self.wfn.Cb_subset("AO", "VIR"), self.u["b"]["vv"]],
         }
 
     def compute_mo_eri(self, blocks, spins):
-        print(f"import MO ERI of block {blocks} and spin {spins}")
+        # print(f"import MO ERI of block {blocks} and spin {spins}")
         # something is wrong here... probably in coefficients_new
         # or I can't use the mo_eri function
         coeffs = tuple(
             self.coefficients[blocks[i] + spins[i]][0] for i in range(4)
         )
-        # print(f"eri blocks: {blocks}, spins: {spins}")
+        print(f"eri blocks: {blocks}, spins: {spins}")
         eri_mo = np.asarray(self.mints.mo_eri(*coeffs))
         print(f"eri block shape: {eri_mo.shape}")
 
@@ -128,13 +119,10 @@ class Psi4EriBuilder(EriBuilder):
         unitary = tuple(
             self.coefficients[blocks[i] + spins[i]][1] for i in range(4)
         )
-        for i in range(4):
-            print(unitary[i].shape)
         eri_mo = np.einsum("up,vq,uvol,or,ls->pqrs",
-                           unitary[0].T,
-                           unitary[1].T, eri_mo,
-                           unitary[2],
-                           unitary[3])
+                           unitary[0], unitary[1], eri_mo,
+                           unitary[2].T, unitary[3].T
+                           )
         print(f"transformed eri block shape: {eri_mo.shape}")
         return eri_mo
 
@@ -258,9 +246,8 @@ class Psi4HFProvider(HartreeFockProvider):
 
     def fill_fock_ff(self, slices, out):
         u = self.unitary
-
-        diagonal = np.empty(self.n_orbs)
         U = {}
+        diagonal = np.empty(self.n_orbs)
         self.fill_orben_f(diagonal)
         # out[:] = np.diag(diagonal)[slices]
         # build individual blocks
@@ -281,9 +268,9 @@ class Psi4HFProvider(HartreeFockProvider):
             [U["vo"], U["vv"]]
         ])
         assert_allclose(np.identity(U.shape[0]), U.T @ U, atol=1e-15)
-        out[:] = (U.T @ np.diag(diagonal) @ U)[slices]
-        print("Import of a Fock Matrix block:")
-        print(f"shape: {np.shape(out)}, slices: {slices}")
+        out[:] = (U @ np.diag(diagonal) @ U.T)[slices]
+        # print("Import of a Fock Matrix block:")
+        # print(f"shape: {np.shape(out)}, slices: {slices}")
 
     def fill_eri_ffff(self, slices, out):
         self.eri_builder.fill_slice_symm(slices, out)
@@ -306,17 +293,21 @@ class Psi4HFProvider(HartreeFockProvider):
 
     def random_unitary(self):
         from scipy.stats import ortho_group
+        from random import choice
         U = {'a': {}, 'b': {}}
         U["oa"] = oa = self.wfn.nalpha()
         U["ob"] = ob = self.wfn.nbeta()
         U["va"] = va = self.wfn.basisset().nbf() - oa
         U["vb"] = vb = self.wfn.basisset().nbf() - ob
 
-        # scheint ein Problem mit dem guess zu geben, wenn nur ein occ orbital
-        # vorhanden ist... produziert random ergebnisse,
-        # die manchmal aber korrekt sind.
-        U["a"]["oo"] = ortho_group.rvs(oa) if oa > 1 else 1
-        U["a"]["vv"] = ortho_group.rvs(va) if va > 1 else 1
+        # scheint ein Problem mit dem guess oder davidson zu geben, wenn nur ein
+        # occ orbital vorhanden ist... nur 1 der 3 möglichen Single Zustände ist
+        # korrekt (der niedrigste). Die anderen hängen von U ab -> random ergebnisse
+        # für H2 -2 1 (singlet doppelt negativ) sind ergebnisse konsistent
+        U["a"]["oo"] = ortho_group.rvs(oa) if oa > 1 \
+            else np.array([[choice((-1, 1))]])
+        U["a"]["vv"] = ortho_group.rvs(va) if va > 1 \
+            else np.array([[choice((-1, 1))]])
         U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
         U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
         return U
