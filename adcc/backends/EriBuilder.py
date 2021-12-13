@@ -74,7 +74,8 @@ class EriBuilder:
         and their mapping to where elements are to be placed
         """
         # print(f"\nsplit_4d_slices input: {slices}")
-        # print(f"result of 1d_split:\n{self.split_1d_slice(sl)}\n" for sl in slices)
+        # print(f"result of 1d_split:\n{self.split_1d_slice(sl)}\n"
+        #       for sl in slices)
         # for sl in slices:
         #     print(self.split_1d_slice(sl))
         # print("product:")
