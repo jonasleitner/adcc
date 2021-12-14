@@ -23,6 +23,7 @@
 from functools import reduce
 import libadcc
 import numpy as np
+from numpy.testing._private.utils import assert_allclose
 
 from .functions import direct_sum, evaluate, einsum
 from .misc import cached_property, cached_member_function
@@ -85,10 +86,9 @@ class LazyMp:
         # but then why only two indices?
         delta = direct_sum("ia+jb->ijab", eia, ejb).symmetrise((2, 3))
         # start with 1/delta as guess for the amplitudes
-        # t2_amp = libadcc.Tensor.ones_like(delta)/delta
         t2_amp = libadcc.Tensor.ones_like(delta) / delta
-        print(f"eri(space):\n{hf.eri(space)}")
-        print(f"starting guess:\n{t2_amp}")
+        # print(f"eri(space):\n{hf.eri(space)}")
+        # print(f"starting guess:\n{t2_amp}")
         # use counter to limit iterations? or just iterate until converged?
         maxiter = 10
         conv_tol = 1e-7  # or whatever is appropriate
@@ -99,9 +99,14 @@ class LazyMp:
             # - sum_k(t_ikab f_kj - t_jkab f_ki)
             print("computing residue...")
             residue = 2.0 * einsum("ijac,bc->ijab", t2_amp, hf.fvv) \
-                .antisymmetrise((2, 3)) - 2.0 * \
-                einsum("ikab,kj->ijab", t2_amp, hf.foo).antisymmetrise((0, 1)) - \
+                .antisymmetrise(2, 3) - 2.0 * \
+                einsum("ik,kjab->ijab", hf.foo, t2_amp).antisymmetrise(0, 1) - \
                 hf.eri(space)
+            residue_1 = einsum("ijac,bc->ijab", t2_amp, hf.fvv) - \
+                      einsum("ijbc,ac->ijba", t2_amp, hf.fvv) - \
+                      einsum("ki,kjab->ijab", hf.foo, t2_amp) + \
+                      einsum("kj,kiab->jiab", hf.foo, t2_amp) - hf.eri(space)
+            # assert_allclose(residue.to_ndarray(), residue_1.to_ndarray(), atol=1e-10)
 
             print("largest residue values: ", residue.select_n_absmax(3))
             if residue.select_n_absmax(1)[0][1] > 1e3:

@@ -124,6 +124,7 @@ class Psi4EriBuilder(EriBuilder):
                            unitary[2], unitary[3]
                            )
         print(f"transformed eri block shape: {eri_mo.shape}")
+        # assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
         return eri_mo
 
     def compute_mo_eri_new(self, blocks, spins, fromslices):
@@ -310,6 +311,9 @@ class Psi4HFProvider(HartreeFockProvider):
             else np.array([[choice((-1, 1))]])
         U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
         U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
+        # U["a"]["oo"] = np.identity(oa)
+        # U["a"]["vv"] = np.identity(va)
+        # print(U)
         return U
 
 
