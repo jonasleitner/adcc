@@ -125,6 +125,7 @@ class Psi4EriBuilder(EriBuilder):
                              )
         assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
         print(f"transformed eri block shape: {eri_mo.shape}")
+        # assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
         return eri_mo
 
     def compute_mo_eri_new(self, blocks, spins, fromslices):

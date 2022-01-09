@@ -25,6 +25,7 @@ from functools import reduce
 from numpy.testing._private.utils import assert_allclose
 import libadcc
 import numpy as np
+from numpy.testing._private.utils import assert_allclose
 
 from .functions import direct_sum, evaluate, einsum
 from .misc import cached_property, cached_member_function
