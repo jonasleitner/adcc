@@ -21,6 +21,8 @@
 ##
 ## ---------------------------------------------------------------------
 from functools import reduce
+
+from numpy.testing._private.utils import assert_allclose
 import libadcc
 import numpy as np
 
@@ -70,12 +72,11 @@ class LazyMp:
     def t2(self, space):
         """iterative T2 amplitudes through minimization
            of the Hylleraas functional"""
-        print("Computing iterative T2 amplitudes")
-        print(f"space for t2 amplitudes: {space}")
+        print(f"Computing iterative T2 amplitudes for space {space}")
         hf = self.reference_state
-        print(f"foo:\n{hf.foo.to_ndarray()}")
-        print(f"fov:\n{hf.fov.to_ndarray()}")
-        print(f"fvv:\n{hf.fvv.to_ndarray()}")
+        # print(f"foo:\n{hf.foo.to_ndarray()}")
+        # print(f"fov:\n{hf.fov.to_ndarray()}")
+        # print(f"fvv:\n{hf.fvv.to_ndarray()}")
         sp = split_spaces(space)
         assert all(s == b.v for s in sp[2:])
         eia = self.df(sp[0] + b.v)
@@ -83,11 +84,11 @@ class LazyMp:
         # why symmetrising the denominator?
         # for numerical reasons?
         # but then why only two indices?
+        # try complete correct sym for guess
         delta = direct_sum("ia+jb->ijab", eia, ejb).symmetrise((2, 3))
         # start with 1/delta as guess for the amplitudes
-        # t2_amp = libadcc.Tensor.ones_like(delta)/delta
         t2_amp = libadcc.Tensor.ones_like(delta) / delta
-        print(f"eri(space):\n{hf.eri(space)}")
+        # print(f"eri(space):\n{hf.eri(space)}")
         print(f"starting guess:\n{t2_amp}")
         # use counter to limit iterations? or just iterate until converged?
         maxiter = 10
@@ -98,20 +99,27 @@ class LazyMp:
             # sum_c(t_ijac f_bc - t_ijbc f_ac)
             # - sum_k(t_ikab f_kj - t_jkab f_ki)
             print("computing residue...")
-            residue = 2.0 * einsum("ijac,bc->ijab", t2_amp, hf.fvv) \
-                .antisymmetrise((2, 3)) - 2.0 * \
+            residue = 2.0 * \
+                einsum("ijac,bc->ijab", t2_amp, hf.fvv).antisymmetrise((2, 3)) \
+                - 2.0 * \
                 einsum("ikab,kj->ijab", t2_amp, hf.foo).antisymmetrise((0, 1)) - \
                 hf.eri(space)
+            # alternative without antisym:
+            residue_1 = einsum('ijac,bc->ijab', t2_amp, hf.fvv) - \
+                einsum('ijbc,ac->ijab', t2_amp, hf.fvv) - \
+                einsum('ikab,kj->ijab', t2_amp, hf.foo) + \
+                einsum('jkab,ki->ijab', t2_amp, hf.foo) - hf.eri(space)
+            print("matching?: ", (residue_1 - residue).select_n_absmax(3))
 
-            print("largest residue values: ", residue.select_n_absmax(3))
-            if residue.select_n_absmax(1)[0][1] > 1e3:
+            print("largest residue values: ", residue_1.select_n_absmax(3))
+            if residue_1.select_n_absmax(1)[0][1] > 1e3:
                 print("max value of residue to large")
                 break
             # add residue to t2_amplutides
-            t2_amp = residue + t2_amp
+            t2_amp = residue_1 + t2_amp
             # compute the norm of the residue
             print("computing norm...")
-            norm = np.sqrt(einsum("ijab,ijab->", residue, residue))
+            norm = np.sqrt(einsum("ijab,ijab->", residue_1, residue_1))
             print(f"{i+1}         {norm}")
             if norm < conv_tol:
                 break

@@ -119,10 +119,11 @@ class Psi4EriBuilder(EriBuilder):
         unitary = tuple(
             self.coefficients[blocks[i] + spins[i]][1] for i in range(4)
         )
-        eri_mo = np.einsum("ap,bq,abcd,cr,ds->pqrs",
-                           unitary[0], unitary[1], eri_mo,
-                           unitary[2], unitary[3]
-                           )
+        eri_mo_1 = np.einsum("ap,bq,abcd,cr,ds->pqrs",
+                             unitary[0], unitary[1], eri_mo,
+                             unitary[2], unitary[3]
+                             )
+        assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
         print(f"transformed eri block shape: {eri_mo.shape}")
         return eri_mo
 
@@ -268,6 +269,8 @@ class Psi4HFProvider(HartreeFockProvider):
             [U["vo"], U["vv"]]
         ])
         assert_allclose(np.identity(U.shape[0]), U.T @ U, atol=1e-15)
+        assert_allclose(np.diag(diagonal)[slices],
+                        (U.T @ np.diag(diagonal) @ U)[slices], atol=1e-15)
         out[:] = (U.T @ np.diag(diagonal) @ U)[slices]
         # print("Import of a Fock Matrix block:")
         # print(f"shape: {np.shape(out)}, slices: {slices}")
@@ -310,6 +313,8 @@ class Psi4HFProvider(HartreeFockProvider):
             else np.array([[choice((-1, 1))]])
         U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
         U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
+        U["a"]["oo"] = np.identity(oa)
+        U["a"]["vv"] = np.identity(va)
         return U
 
 
