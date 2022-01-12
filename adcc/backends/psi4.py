@@ -102,7 +102,7 @@ class Psi4EriBuilder(EriBuilder):
         try:
             assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
         except AssertionError:
-            print("Not using identity for ERI tranformation\n\n")
+            print("Not using identity for ERI tranformation\n")
         return eri_mo_1
 
 

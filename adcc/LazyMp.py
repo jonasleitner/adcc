@@ -94,7 +94,7 @@ class LazyMp:
             residue_0 = 2.0 * \
                 einsum("ijac,cb->ijab", t2_amp, hf.fvv) \
                 - 2.0 * \
-                einsum("ikab,kj->ijab", t2_amp, hf.foo) - \
+                einsum("ikab,jk->ijab", t2_amp, hf.foo) - \
                 hf.eri(space)
             residue_0 = residue_0.antisymmetrise((0, 1)).antisymmetrise((2, 3))
             # alternatively:
@@ -102,6 +102,7 @@ class LazyMp:
                 einsum('ijbc,ca->ijab', t2_amp, hf.fvv) - \
                 einsum('ikab,jk->ijab', t2_amp, hf.foo) + \
                 einsum('jkab,ik->ijab', t2_amp, hf.foo) - hf.eri(space)
+            residue_1 = residue_1.antisymmetrise((0, 1)).antisymmetrise((2, 3))
             print("matching?: ", (residue_1 - residue_0).select_n_absmax(3))
 
             # print("largest residue values: ", residue_0.select_n_absmax(3))
