@@ -20,12 +20,8 @@
 ## along with adcc. If not, see <http://www.gnu.org/licenses/>.
 ##
 ## ---------------------------------------------------------------------
-from functools import reduce
-
-from numpy.testing._private.utils import assert_allclose
 import libadcc
 import numpy as np
-from numpy.testing._private.utils import assert_allclose
 
 from .functions import direct_sum, evaluate, einsum
 from .misc import cached_property, cached_member_function
@@ -75,52 +71,48 @@ class LazyMp:
            of the Hylleraas functional"""
         print(f"Computing iterative T2 amplitudes for space {space}")
         hf = self.reference_state
-        # print(f"foo:\n{hf.foo.to_ndarray()}")
-        # print(f"fov:\n{hf.fov.to_ndarray()}")
-        # print(f"fvv:\n{hf.fvv.to_ndarray()}")
         sp = split_spaces(space)
         assert all(s == b.v for s in sp[2:])
         eia = self.df(sp[0] + b.v)
         ejb = self.df(sp[1] + b.v)
-        # why symmetrising the denominator?
-        # for numerical reasons?
-        # but then why only two indices?
-        # try complete correct sym for guess
-        delta = direct_sum("ia+jb->ijab", eia, ejb).symmetrise((2, 3))
+        # try complete sym for guess
+        delta = direct_sum("ia+jb->ijab", eia, ejb)
+        delta = delta.symmetrise((0, 1)).symmetrise((2, 3))
         # start with 1/delta as guess for the amplitudes
         t2_amp = libadcc.Tensor.ones_like(delta) / delta
-        # print(f"eri(space):\n{hf.eri(space)}")
-        print(f"starting guess:\n{t2_amp}")
-        # use counter to limit iterations? or just iterate until converged?
-        maxiter = 10
-        conv_tol = 1e-7  # or whatever is appropriate
+        # print(f"starting guess:\n{t2_amp}")
+
+        maxiter = 100
+        conv_tol = 1e-15  # or whatever is appropriate
         print("iteration, residue norm")
         for i in range(maxiter):
-            print(f"starting iteration {i+1}")
-            # sum_c(t_ijac f_bc - t_ijbc f_ac)
-            # - sum_k(t_ikab f_kj - t_jkab f_ki)
-            print("computing residue...")
-            residue = 2.0 * \
-                einsum("ijac,bc->ijab", t2_amp, hf.fvv).antisymmetrise((2, 3)) \
-                - 2.0 * \
-                einsum("ikab,kj->ijab", t2_amp, hf.foo).antisymmetrise((0, 1)) - \
-                hf.eri(space)
-            # alternative without antisym:
-            residue_1 = einsum('ijac,bc->ijab', t2_amp, hf.fvv) - \
-                einsum('ijbc,ac->ijab', t2_amp, hf.fvv) - \
-                einsum('ikab,kj->ijab', t2_amp, hf.foo) + \
-                einsum('jkab,ki->ijab', t2_amp, hf.foo) - hf.eri(space)
-            print("matching?: ", (residue_1 - residue).select_n_absmax(3))
+            # print(f"starting iteration {i+1}")
+            # print("computing residue...")
 
-            print("largest residue values: ", residue_1.select_n_absmax(3))
-            if residue_1.select_n_absmax(1)[0][1] > 1e3:
+            # sum_c(t_ijac f_cb - t_ijbc f_ca) = 2 * sum_c t_ijac f_cb
+            # - sum_k(t_ikab f_jk - t_jkab f_ik) = - 2 * sum_k t_ikab f_jk
+            residue_0 = 2.0 * \
+                einsum("ijac,cb->ijab", t2_amp, hf.fvv) \
+                - 2.0 * \
+                einsum("ikab,kj->ijab", t2_amp, hf.foo) - \
+                hf.eri(space)
+            residue_0 = residue_0.antisymmetrise((0, 1)).antisymmetrise((2, 3))
+            # alternatively:
+            residue_1 = einsum('ijac,cb->ijab', t2_amp, hf.fvv) - \
+                einsum('ijbc,ca->ijab', t2_amp, hf.fvv) - \
+                einsum('ikab,jk->ijab', t2_amp, hf.foo) + \
+                einsum('jkab,ik->ijab', t2_amp, hf.foo) - hf.eri(space)
+            print("matching?: ", (residue_1 - residue_0).select_n_absmax(3))
+
+            # print("largest residue values: ", residue_0.select_n_absmax(3))
+            if residue_0.select_n_absmax(1)[0][1] > 1e3:
                 print("max value of residue to large")
                 break
             # add residue to t2_amplutides
-            t2_amp = residue_1 + t2_amp
+            t2_amp = t2_amp - 0.25 * residue_0
             # compute the norm of the residue
-            print("computing norm...")
-            norm = np.sqrt(einsum("ijab,ijab->", residue_1, residue_1))
+            # print("computing norm...")
+            norm = np.sqrt(einsum("ijab,ijab->", residue_0, residue_0))
             print(f"{i+1}         {norm}")
             if norm < conv_tol:
                 break

@@ -75,27 +75,6 @@ class Psi4EriBuilder(EriBuilder):
         super().__init__(n_orbs, n_orbs_alpha, n_alpha, n_beta, restricted)
 
     @property
-    def coefficients_new(self):
-        u = self.u
-        U = {}
-        for spin in ["a", "b"]:
-            U[spin] = np.block([
-                [u[spin]["oo"], np.zeros((u["o" + spin], u["v" + spin]))],
-                [np.zeros((u["v" + spin], u["o" + spin])), u[spin]["vv"]]
-            ])
-            assert_allclose(np.identity(u["o" + spin] + u["v" + spin]),
-                            U[spin].T @ U[spin], atol=1e-15)
-
-        occ_a = psi4.core.Matrix(u["oa"] + u["va"], u["oa"])
-        virt_a = psi4.core.Matrix(u["oa"] + u["va"], u["va"])
-        return {
-            "Oa": occ_a.from_array(U["a"][:, :u["oa"]]),
-            "Ob": None,  # self.wfn.Cb_subset("AO", "OCC"),
-            "Va": virt_a.from_array(U["a"][:, u["oa"]:]),
-            "Vb": None  # self.wfn.Cb_subset("AO", "VIR"),
-        }
-
-    @property
     def coefficients(self):
         return {
             "Oa": [self.wfn.Ca_subset("AO", "OCC"), self.u["a"]["oo"]],
@@ -105,15 +84,11 @@ class Psi4EriBuilder(EriBuilder):
         }
 
     def compute_mo_eri(self, blocks, spins):
-        # print(f"import MO ERI of block {blocks} and spin {spins}")
-        # something is wrong here... probably in coefficients_new
-        # or I can't use the mo_eri function
         coeffs = tuple(
             self.coefficients[blocks[i] + spins[i]][0] for i in range(4)
         )
-        print(f"eri blocks: {blocks}, spins: {spins}")
+        # print(f"Import eri block: {blocks}, spins: {spins}")
         eri_mo = np.asarray(self.mints.mo_eri(*coeffs))
-        print(f"eri block shape: {eri_mo.shape}")
 
         # transform mo eri with the unitary matrix
         unitary = tuple(
@@ -123,25 +98,12 @@ class Psi4EriBuilder(EriBuilder):
                              unitary[0], unitary[1], eri_mo,
                              unitary[2], unitary[3]
                              )
-        assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
-        print(f"transformed eri block shape: {eri_mo.shape}")
-        # assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
-        return eri_mo
-
-    def compute_mo_eri_new(self, blocks, spins, fromslices):
-        print(f"import MO ERI of block {blocks} and spin {spins}")
-        slices = []
-        for idx, b in enumerate(blocks):
-            if b == "O":
-                slices.append(fromslices[idx])
-            elif b == "V":
-                slices.append(slice(
-                    self.n_alpha, self.n_alpha + fromslices[idx].stop
-                ))
-        slices = tuple(slices)
-        print(f"original slices: {fromslices}")
-        print(f"adjusted virtual slices: {slices}")
-        return None
+        # check if unitary = identity
+        try:
+            assert_allclose(eri_mo, eri_mo_1, atol=1e-15)
+        except AssertionError:
+            print("Not using identity for ERI tranformation\n\n")
+        return eri_mo_1
 
 
 class Psi4HFProvider(HartreeFockProvider):
@@ -269,12 +231,15 @@ class Psi4HFProvider(HartreeFockProvider):
             [U["oo"], U["ov"]],
             [U["vo"], U["vv"]]
         ])
+        # check if unitary matrix is unitary
         assert_allclose(np.identity(U.shape[0]), U.T @ U, atol=1e-15)
-        assert_allclose(np.diag(diagonal)[slices],
-                        (U.T @ np.diag(diagonal) @ U)[slices], atol=1e-15)
+        # check if unitary is the identity
+        try:
+            assert_allclose(np.diag(diagonal)[slices],
+                            (U.T @ np.diag(diagonal) @ U)[slices], atol=1e-15)
+        except AssertionError:
+            print("Not using identity for Fock Matrix transformation\n")
         out[:] = (U.T @ np.diag(diagonal) @ U)[slices]
-        # print("Import of a Fock Matrix block:")
-        # print(f"shape: {np.shape(out)}, slices: {slices}")
 
     def fill_eri_ffff(self, slices, out):
         self.eri_builder.fill_slice_symm(slices, out)
@@ -314,8 +279,11 @@ class Psi4HFProvider(HartreeFockProvider):
             else np.array([[choice((-1, 1))]])
         U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
         U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
+        # use identity for now to test hylleraas
         U["a"]["oo"] = np.identity(oa)
         U["a"]["vv"] = np.identity(va)
+        U["b"]["oo"] = np.identity(ob)
+        U["b"]["vv"] = np.identity(vb)
         return U
 
 
