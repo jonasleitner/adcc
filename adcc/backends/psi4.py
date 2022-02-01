@@ -280,10 +280,15 @@ class Psi4HFProvider(HartreeFockProvider):
         U["b"]["oo"] = U["a"]["oo"] if self.restricted else ortho_group.rvs(ob)
         U["b"]["vv"] = U["a"]["vv"] if self.restricted else ortho_group.rvs(vb)
         # use identity for now to test hylleraas
-        # U["a"]["oo"] = np.identity(oa)
-        # U["a"]["vv"] = np.identity(va)
-        # U["b"]["oo"] = np.identity(ob)
-        # U["b"]["vv"] = np.identity(vb)
+        U["a"]["oo"] = np.identity(oa)
+        U["a"]["vv"] = np.identity(va)
+        U["b"]["oo"] = np.identity(ob)
+        U["b"]["vv"] = np.identity(vb)
+        # total = ortho_group.rvs(oa + va)
+        # U["a"]["oo"] = total[:oa, :oa]
+        # U["a"]["vv"] = total[oa:, oa:]
+        # U["a"]["ov"] = total[:oa, oa:]
+        # U["a"]["vo"] = total[oa:, :oa]
         return U
 
 

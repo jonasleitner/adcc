@@ -22,6 +22,7 @@
 ## ---------------------------------------------------------------------
 from math import sqrt
 from collections import namedtuple
+from numpy.testing import assert_allclose
 
 from adcc import block as b
 from adcc.functions import direct_sum, einsum, zeros_like
@@ -267,7 +268,7 @@ def block_cvs_pphh_ph_1(hf, mp, intermediates):
 #
 # 2nd order main
 #
-def block_ph_ph_2(hf, mp, intermediates):
+def block_ph_ph_2_old(hf, mp, intermediates):
     i1 = intermediates.adc2_i1
     i2 = intermediates.adc2_i2
     diagonal = AmplitudeVector(ph=(
@@ -288,6 +289,106 @@ def block_ph_ph_2(hf, mp, intermediates):
             - einsum("ij,ja->ia", i2, ampl.ph)
             - einsum("jaib,jb->ia", hf.ovov, ampl.ph)    # 1
             - 0.5 * einsum("ikac,kc->ia", term_t2_eri, ampl.ph)  # 2
+        ))
+    return AdcBlock(apply, diagonal)
+
+
+def block_ph_ph_2(hf, mp, intermediates):
+    # MP second order singles amplitudes are missing. For the moment fine,
+    # because they are contracted with off diagonal Fock blocks.
+    # missing in i0, i1, i2
+    td = mp.t2_hyl('o1o1v1v1')
+
+    i0 = (
+        # 2nd order
+        # - 0.5 * sum_klmcd t_klcd * t_kmcd * f_ml
+        + einsum('ij,ji->', mp.mp2_diffdm.oo, hf.foo)
+        # + 0.5 * sum_klcde t_klcd * t_klce * f_de
+        + einsum('ab,ab->', mp.mp2_diffdm.vv, hf.fvv)
+        # - 0.25 * sum_klcd t_klcd * <kl||cd>
+        - 0.25 * einsum('klcd,klcd', td, hf.oovv)
+    )
+    assert i0 < 1e-15, "Const intermediate is not approx. equal 0"
+
+    i1 = (
+        # 0th order
+        - hf.foo
+        # 2nd order
+        # + 0.5 * sum_kcd (t_kjcd * <ki||cd> + t_kicd * <kj||cd>)
+        + einsum('kjcd,kicd->ij', td, hf.oovv).symmetrise((0, 1))
+        # - sum_kcde t_kjcd * t_kice * f_de
+        - einsum('kjcd,kice,de->ij', td, td, hf.fvv)
+        # + sum_klcd (+0.25 * t_kjcd * t_klcd * f_li
+        #             +0.25 * t_klcd * t_ilcd * f_jk
+        #             + 0.5 * t_kjcd * t_licd * f_lk)
+        - einsum('jk,ki->ij', mp.mp2_diffdm.oo, hf.foo).symmetrise((0, 1))
+        + 0.5 * einsum('kjcd,licd,lk->ij', td, td, hf.foo)
+    )
+    assert_allclose(
+        i1.to_ndarray(), (-intermediates.adc2_i2).to_ndarray(),
+        atol=1e-15
+    )
+
+    i2 = (
+        # 0th order
+        + hf.fvv
+        # 2nd order
+        # + 0.5 * sum_klc (t_klcb * <kl||ca> + t_klca * <kl||cb>)
+        + einsum('klcb,klca->ab', td, hf.oovv).symmetrise((0, 1))
+        # sum_klmc t_klcb * t_kmca * f_ml
+        + einsum('klcb,kmca,ml->ab', td, td, hf.foo)
+        # sum_klcd (-0.25 * t_klcb * t_klcd * f_ad
+        #           +0.25 * t_klcd * t_klda * f_cb
+        #           - 0.5 * t_klcb * t_klda * f_cd)
+        - einsum('bc,ac->ab', mp.mp2_diffdm.vv, hf.fvv).symmetrise((0, 1))
+        - 0.5 * einsum('klcb,klda,cd->ab', td, td, hf.fvv)
+    )
+    assert_allclose(
+        i2.to_ndarray(), intermediates.adc2_i1.to_ndarray(),
+        atol=1e-15
+    )
+
+    i3 = (
+        # 2nd order
+        # + sum_klc (- 1.0 * t_kjcb * t_lica * f_lk
+        #            - 0.5 * t_kjcb * t_klca * f_li
+        #            + 0.5 * t_klcb * t_lica * f_jk)
+        - einsum('kjcb,lica,lk->iajb', td, td, hf.foo)
+        - 0.5 * einsum('kjcb,klca,li->iajb', td, td, hf.foo)
+        + 0.5 * einsum('klcb,lica,jk->iajb', td, td, hf.foo)
+        # + sum_kcd (+ 0.5 * t_kjcb * t_kicd * f_ad
+        #            - 0.5 * t_kjcd * t_kida * f_cb
+        #            + 1.0 * t_kjcb * t_kida * f_cd)
+        + 0.5 * einsum('kjcb,kicd,ad->iajb', td, td, hf.fvv)
+        - 0.5 * einsum('kjcd,kida,cb->iajb', td, td, hf.fvv)
+        + einsum('kjcb,kida,cd->iajb', td, td, hf.fvv)
+        # - sum_kc (t_kjcb * <ki||ca> + t_kica * <kj||cb>)
+        - einsum('kjcb,kica->iajb', td, hf.oovv)
+        - einsum('kica,kjcb->iajb', td, hf.oovv)
+    )
+
+    term_t2_eri = - 0.5 * (
+        + einsum("kjcb,kica->iajb", mp.t2oo, hf.oovv)
+        + einsum("kica,kjcb->iajb", mp.t2oo, hf.oovv)
+    )
+    assert_allclose(
+        i3.to_ndarray(), term_t2_eri.to_ndarray(), atol=1e-15
+    )
+
+    diagonal = AmplitudeVector(ph=(
+        + i0  # just a number
+        + direct_sum('i+a->ia', i1.diagonal(), i2.diagonal())
+        - einsum('iaia->ia', hf.ovov)
+        + einsum('iaia->ia', i3)
+    ))
+
+    def apply(ampl):
+        return AmplitudeVector(ph=(
+            + i0 * ampl.ph
+            + einsum('ij,ja->ia', i1, ampl.ph)
+            + einsum('ab,ib->ia', i2, ampl.ph)
+            - einsum('jaib,jb->ia', hf.ovov, ampl.ph)
+            + einsum('iajb,jb->ia', i3, ampl.ph)
         ))
     return AdcBlock(apply, diagonal)
 

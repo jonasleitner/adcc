@@ -93,7 +93,7 @@ class LazyMp:
 
         maxiter = 100
         conv_tol = 1e-15
-        print("iteration, residue norm D/S")
+        print("iteration, residue norm Doubles")
         for i in range(maxiter):
             # sum_c(t_ijac f_cb - t_ijbc f_ca) = 2 * sum_c t_ijac f_cb
             # - sum_k(t_ikab f_jk - t_jkab f_ik) = - 2 * sum_k t_ikab f_jk
@@ -150,7 +150,7 @@ class LazyMp:
 
         # guess setup
         td_amp = hf.eri(space)
-        ts_amp = eia
+        ts_amp = eia.ones_like()
 
         maxiter = 100
         conv_tol = 1e-15
@@ -268,12 +268,15 @@ class LazyMp:
         ret = OneParticleOperator(self.mospaces, is_symmetric=True)
         # NOTE: the following 3 blocks are equivalent to the cvs_p0 intermediates
         # defined at the end of this file
-        ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
+        td = self.t2_hyl('o1o1v1v1')
+        # ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
+        ret.oo = -0.5 * einsum("ikab,jkab->ij", td, td)
         ret.ov = -0.5 * (
             + einsum("ijbc,jabc->ia", self.t2oo, hf.ovvv)
             + einsum("jkib,jkab->ia", hf.ooov, self.t2oo)
         ) / self.df(b.ov)
-        ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
+        # ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
+        ret.vv = 0.5 * einsum("ijac,ijbc->ab", td, td)
 
         if self.has_core_occupied_space:
             # additional terms to "revert" CVS for ground state density
