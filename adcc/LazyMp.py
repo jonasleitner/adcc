@@ -33,14 +33,6 @@ from .MoSpaces import split_spaces
 from . import block as b
 
 
-class helper_dict(dict):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def evaluate(self):
-        return self
-
-
 class LazyMp:
     def __init__(self, hf):
         """
@@ -75,18 +67,16 @@ class LazyMp:
 
     @cached_member_function
     def t2_hyl(self, space):
-        """iterative T2 amplitudes through minimization
-           of the Hylleraas functional
-           """
+        """
+        Iterative T2 amplitudes through minimization
+        of the Hylleraas functional
+        """
+
+        if space != b.oovv:
+            raise NotImplementedError("T2 hylleraas amplitudes not implemented "
+                                      f"for space {space}")
         print(f"\nComputing iterative T2 amplitudes for space {space}")
         hf = self.reference_state
-        sp = split_spaces(space)
-        assert all(s == b.v for s in sp[2:])
-        # eia = self.df(sp[0] + b.v)
-        # ejb = self.df(sp[1] + b.v)
-        # try complete sym for guess
-        # delta = direct_sum("ia+jb->ijab", eia, ejb)
-        # delta = delta.symmetrise((0, 1)).symmetrise((2, 3))
 
         # guess setup
         t2_amp = hf.eri(space)
@@ -97,30 +87,25 @@ class LazyMp:
         for i in range(maxiter):
             # sum_c(t_ijac f_cb - t_ijbc f_ca) = 2 * sum_c t_ijac f_cb
             # - sum_k(t_ikab f_jk - t_jkab f_ik) = - 2 * sum_k t_ikab f_jk
-            residue = 2.0 * \
-                einsum("ijac,cb->ijab", t2_amp, hf.fvv) \
-                - 2.0 * \
-                einsum("ikab,jk->ijab", t2_amp, hf.foo) - \
-                hf.eri(space)
+            residue = (
+                + 2.0 * einsum("ijac,cb->ijab", t2_amp, hf.fvv)
+                - 2.0 * einsum("ikab,jk->ijab", t2_amp, hf.foo)
+                - hf.eri(space)
+            )
             residue = residue.antisymmetrise((0, 1)).antisymmetrise((2, 3))
 
             if residue.select_n_absmax(1)[0][1] > 1e3:
                 print("max value of residue to large")
                 print(residue.select_n_absmax(3))
                 exit()
-            # add residue to t2_amplutides
-            t2_amp = t2_amp - 0.25 * residue
-
-            # E = -0.5 * einsum('ijab,ijab->', t2_amp, hf.oovv) \
-            #    -0.5 * einsum('ikab,ijab,jk->', t2_amp, t2_amp, hf.foo) \
-            #    +0.5 * einsum('ijac,ijab,cb->', t2_amp, t2_amp, hf.fvv)
-            # print("current correction: ", E)
+            # update t2 amplitudes
+            t2_amp -= 0.25 * residue
 
             # compute the norm of the residue
             norm = np.sqrt(einsum("ijab,ijab->", residue, residue))
             print(f"{i+1}         {norm}")
             if norm < conv_tol:
-                print("Converged!")
+                print("Iterative T2 amplitudes converged!")
                 break
             elif norm > 1e3:
                 print("diverged :(")
@@ -131,8 +116,6 @@ class LazyMp:
         diff_norm = np.sqrt(einsum('ijab,ijab->', diff, diff))
         print("diff Hyl-RSPT amps: norm = ", diff_norm)
         print("diff Hyl-RSPT amps: max val = ", diff.select_n_absmax(3))
-        # if diff_norm > 1e-13:
-        #    print(diff.to_ndarray())
         return t2_amp
 
     @cached_member_function
@@ -141,26 +124,29 @@ class LazyMp:
            minimization of the Hylleraas functional
            """
 
+        if space != b.oovv:
+            raise NotImplementedError("T2 hylleraas amplitudes not implemented "
+                                      f"for space {space}")
         print("\nComputing iterative T amplitudes (including singles) for space",
               space)
         hf = self.reference_state
-        sp = split_spaces(space)
-        assert all(s == b.v for s in sp[2:])
-        eia = self.df(sp[0] + b.v)
 
         # guess setup
         td_amp = hf.eri(space)
-        ts_amp = eia.ones_like()
+        ts_amp = OneParticleOperator(self.mospaces, is_symmetric=True)
+        ts_amp = ts_amp.ov.ones_like()
 
         maxiter = 100
         conv_tol = 1e-15
         print("iteration, residue norm Doubles/Singles")
         for i in range(maxiter):
             # total residue (with singles):
-            doubles_r = einsum('ia,jb->ijab', ts_amp, hf.fov) - \
-                0.25 * hf.eri(space) - \
-                0.5 * einsum('ikab,jk->ijab', td_amp, hf.foo) + \
-                0.5 * einsum('ijac,cb->ijab', td_amp, hf.fvv)
+            doubles_r = (
+                + einsum('ia,jb->ijab', ts_amp, hf.fov)
+                - 0.25 * hf.eri(space)
+                - 0.5 * einsum('ikab,jk->ijab', td_amp, hf.foo)
+                + 0.5 * einsum('ijac,cb->ijab', td_amp, hf.fvv)
+            )
             doubles_r = doubles_r.antisymmetrise((0, 1)).antisymmetrise((2, 3))
 
             if doubles_r.select_n_absmax(1)[0][1] > 1e3:
@@ -180,7 +166,7 @@ class LazyMp:
             # add residue to amplutides
             # here different scaling factor than without singles, because prefactors
             # in the residue expression are different
-            td_amp = td_amp - 1.0 * doubles_r
+            td_amp -= 1.0 * doubles_r
             ts_amp -= 0.25 * singles_r
 
             # compute the norm of the residues
@@ -199,10 +185,20 @@ class LazyMp:
         diff_norm = np.sqrt(einsum('ijab,ijab->', diff, diff))
         print("diff Hyl(with S)-RSPT amps: norm = ", diff_norm)
         print("diff Hyl(with S)-RSPT amps: max val = ", diff.select_n_absmax(3))
-        # if diff_norm > 1e-13:
-        #     print(diff.to_ndarray())
         print("converged singles amplitudes:\n", ts_amp)
-        return helper_dict(singles=ts_amp, doubles=td_amp)
+        # hacking the singles amplitudes in the function cache.
+        if 'ts1_hyl' not in self._function_cache:
+            self._function_cache['ts1_hyl'] = {}
+        self._function_cache['ts1_hyl'][b.ov] = ts_amp
+        return td_amp
+
+    @cached_member_function
+    def ts1_hyl(self, space):
+        if space != b.ov:
+            raise NotImplementedError("T^S_1 term not implemented "
+                                      f"for space {space}.")
+        self.t2_with_singles(b.oovv)
+        return self._function_cache['ts1_hyl'][space]
 
     @cached_member_function
     def t2(self, space):
@@ -257,6 +253,23 @@ class LazyMp:
                                       f"'{contraction}'.")
         contraction_str, eri_block = expressions[key]
         return einsum(contraction_str, self.t2oo, hf.eri(eri_block))
+
+    @cached_member_function
+    def ts2(self, space):
+        # no idea if this gives the correct amplitudes
+        """Returns the second order singles amplitudes T^S_2."""
+        if space != b.ov:
+            raise NotImplementedError("T^S_2 term not implemented ",
+                                      f"for space {space}.")
+        hf = self.reference_state
+        sp = split_spaces(space)
+        eia = self.df(sp[0] + sp[1])
+        return (
+            - 0.5 * (
+                + einsum('jkib,jkab->ia', hf.ooov, self.t2oo)
+                + einsum('jabc,ijbc->ia', hf.ovvv, self.t2oo)
+            ) / eia
+        )
 
     @cached_property
     @timed_member_call(timer="timer")
@@ -415,19 +428,18 @@ class LazyMp:
                 - 0.5 * einsum('ikab,ijab,jk->', td, td, hf.foo) \
                 + 0.5 * einsum('ijac,ijab,cb->', td, td, hf.fvv)
         else:
-            amps = self.t2_with_singles('o1o1v1v1')
-            ts = amps["singles"]
-            td = amps["doubles"]
+            td = self.t2_with_singles('o1o1v1v1')
+            ts = self.ts1_hyl('o1v1')
             i1 = - einsum('ja,ia,ij->', ts, ts, hf.foo)
             i2 = + einsum('ib,ia,ba->', ts, ts, hf.fvv)
-            i3 = + einsum('ia,ijab,jb->', ts, td, hf.fov)
-            i4 = + einsum('ijab,ia,bj->', td, ts, hf.fvo)
+            i3 = + 2 * einsum('ia,ijab,jb->', ts, td, hf.fov)
+            # i4 = + einsum('ijab,ia,bj->', td, ts, hf.fvo)
             i5 = - 0.5 * einsum('ijab,ijab->', td, hf.oovv)
             i6 = - 0.5 * einsum('ikab,ijab,jk->', td, td, hf.foo)
             i7 = + 0.5 * einsum('ijac,ijab,cb->', td, td, hf.fvv)
-            print(i1, i2, i3, i4, i5, i6, i7)
-            print("can merge i3 and i4?: ", i3 - i4)
-            return i1 + i2 + i3 + i4 + i5 + i6 + i7
+            print(i1, i2, i3, i5, i6, i7)
+            # print("can merge i3 and i4?: ", i3 - i4)
+            return i1 + i2 + i3 + i5 + i6 + i7
 
     def to_qcvars(self, properties=False, recurse=False, maxlevel=2):
         """

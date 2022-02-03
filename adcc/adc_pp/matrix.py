@@ -22,7 +22,7 @@
 ## ---------------------------------------------------------------------
 from math import sqrt
 from collections import namedtuple
-from numpy.testing import assert_allclose
+# from numpy.testing import assert_allclose
 
 from adcc import block as b
 from adcc.functions import direct_sum, einsum, zeros_like
@@ -308,7 +308,7 @@ def block_ph_ph_2(hf, mp, intermediates):
         # - 0.25 * sum_klcd t_klcd * <kl||cd>
         - 0.25 * einsum('klcd,klcd', td, hf.oovv)
     )
-    assert i0 < 1e-15, "Const intermediate is not approx. equal 0"
+    # assert i0 < 1e-15, "Const intermediate is not approx. equal 0"
 
     i1 = (
         # 0th order
@@ -324,10 +324,10 @@ def block_ph_ph_2(hf, mp, intermediates):
         - einsum('jk,ki->ij', mp.mp2_diffdm.oo, hf.foo).symmetrise((0, 1))
         + 0.5 * einsum('kjcd,licd,lk->ij', td, td, hf.foo)
     )
-    assert_allclose(
-        i1.to_ndarray(), (-intermediates.adc2_i2).to_ndarray(),
-        atol=1e-15
-    )
+    # assert_allclose(
+    #     i1.to_ndarray(), (-intermediates.adc2_i2).to_ndarray(),
+    #     atol=1e-15
+    # )
 
     i2 = (
         # 0th order
@@ -343,10 +343,10 @@ def block_ph_ph_2(hf, mp, intermediates):
         - einsum('bc,ac->ab', mp.mp2_diffdm.vv, hf.fvv).symmetrise((0, 1))
         - 0.5 * einsum('klcb,klda,cd->ab', td, td, hf.fvv)
     )
-    assert_allclose(
-        i2.to_ndarray(), intermediates.adc2_i1.to_ndarray(),
-        atol=1e-15
-    )
+    # assert_allclose(
+    #     i2.to_ndarray(), intermediates.adc2_i1.to_ndarray(),
+    #     atol=1e-15
+    # )
 
     i3 = (
         # 2nd order
@@ -367,13 +367,13 @@ def block_ph_ph_2(hf, mp, intermediates):
         - einsum('kica,kjcb->iajb', td, hf.oovv)
     )
 
-    term_t2_eri = - 0.5 * (
-        + einsum("kjcb,kica->iajb", mp.t2oo, hf.oovv)
-        + einsum("kica,kjcb->iajb", mp.t2oo, hf.oovv)
-    )
-    assert_allclose(
-        i3.to_ndarray(), term_t2_eri.to_ndarray(), atol=1e-15
-    )
+    # term_t2_eri = - 0.5 * (
+    #     + einsum("kjcb,kica->iajb", mp.t2oo, hf.oovv)
+    #     + einsum("kica,kjcb->iajb", mp.t2oo, hf.oovv)
+    # )
+    # assert_allclose(
+    #     i3.to_ndarray(), term_t2_eri.to_ndarray(), atol=1e-15
+    # )
 
     diagonal = AmplitudeVector(ph=(
         + i0  # just a number
