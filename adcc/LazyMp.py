@@ -138,7 +138,7 @@ class LazyMp:
 
         maxiter = 100
         conv_tol = 1e-15
-        print("iteration, residue norm Doubles/Singles")
+        print("iteration, residue norm:   Singles   Doubles")
         for i in range(maxiter):
             # total residue (with singles):
             doubles_r = (
@@ -166,8 +166,8 @@ class LazyMp:
             # add residue to amplutides
             # here different scaling factor than without singles, because prefactors
             # in the residue expression are different
+            ts_amp -= 0.5 * singles_r
             td_amp -= 1.0 * doubles_r
-            ts_amp -= 0.25 * singles_r
 
             # compute the norm of the residues
             norm_d = np.sqrt(einsum("ijab,ijab->", doubles_r, doubles_r))
@@ -214,6 +214,149 @@ class LazyMp:
         )
 
     @cached_member_function
+    def ts2_hyl(self, space):
+        """Second order iterative singles amplitudes"""
+        if space != b.ov:
+            raise NotImplementedError("T^S_2 term not implemented "
+                                      f"for space {space}.")
+
+        hf = self.reference_state
+        # first order amplitudes from minimizing E(2)
+        ts1 = self.ts1_hyl(space)
+        td1 = self.t2_with_singles(b.oovv)
+
+        # guess setup
+        ts2 = ts1.copy()
+        td2 = td1.copy()
+
+        # some const intermediates (due to fixed first order amplitudes)
+        # i_s_nice = (
+        #     - einsum('jaib,jb->ia', hf.ovov, ts1)
+        #     - 0.5 * einsum('jabc,ijbc->ia', hf.ovvv, td1)
+        #     - 0.5 * einsum('jkib,jkab->ia', hf.ooov, td1)
+        # )
+        # i_d_nice = (
+        #     + 0.5 * einsum('ijka,kb->ijab', hf.ooov, ts1)
+        #     + 0.5 * einsum('icab,jc->ijab', hf.ovvv, ts1)
+        #     - einsum('kbjc,ikac->ijab', hf.ovov, td1)
+        #     + 0.125 * einsum('abcd,ijcd->ijab', hf.vvvv, td1)
+        #     + 0.125 * einsum('klij,klab->ijab', hf.oooo, td1)
+        # )
+
+        # terms that do not depend on the second order amplitudes.
+        # Constant, because the first oder amplitudes are kept fixed.
+        # <2|(H1 - E1)|1>:
+        i_s = (
+            - einsum('ibja,ia->jb', hf.ovov, ts1)
+            + 0.5 * einsum('icab,ijab->jc', hf.ovvv, td1)
+            + 0.5 * einsum('ijka,ijab->kb', hf.ooov, td1)
+        )
+        i_d = (
+            + 0.5 * einsum('jkia,ib->jkab', hf.ooov, ts1)
+            + 0.5 * einsum('iabc,ja->ijbc', hf.ovvv, ts1)
+            - einsum('ibja,ikac->jkbc', hf.ovov, td1)
+            + 1 / 8 * einsum('cdab,ijab->ijcd', hf.vvvv, td1)
+            + 1 / 8 * einsum('ijkl,ijab->klab', hf.oooo, td1)
+        )
+        # i_t = (
+        #     + 0.25 * einsum('ijab,kc->ijkabc', hf.oovv, ts1)
+        #     + 0.25 * einsum('jkia,ilbc->jklabc', hf.ooov, td1)
+        #     + 0.25 * einsum('iabc,jkad->ijkbcd', hf.ovvv, td1)
+        # )
+        # i_q = (
+        #     + 1 / 16 * direct_sum('ijab,klcd->ijklabcd', hf.oovv, td1)
+        # )
+
+        maxiter = 200
+        conv_tol = 1e-15
+        print("Computing iterative 2nd order ground state wavefunction "
+              "by minimizing the fourth order energy.")
+        print("Residue norm:     Singles    Doubles")
+        for i in range(maxiter):
+            singles_r = (
+                + i_s + einsum('ba,ia->ib', hf.fvv, ts2)
+                + einsum('ia,ijab->jb', hf.fov, td2)
+                - einsum('ij,ia->ja', hf.foo, ts2)
+            )
+            doubles_r = (
+                + i_d
+                # the direct_sum term below does something weird
+                # if neglecting this one, the result is correct.
+                + direct_sum('ai,jb->ijab', hf.fvo, ts2)
+                + 0.5 * einsum('ba,ijac->ijbc', hf.fvv, td2)
+                # + 0.25 * einsum('ia,ijkabc->jkbc', hf.fov, tt2)
+                - 0.5 * einsum('ij,ikab->jkab', hf.foo, td2)
+            )
+            # triples_r = (
+            #     + i_t + 0.25 * direct_sum('ai,jkbc->ijkabc', hf.fvo, tt2)
+            #     + 1 / 12 * einsum('ba,ijkacd->ijkbcd', hf.fvv, tt2)
+            #     + 1 / 36 * einsum('ia,ijklabcd->jklbcd', hf.ov, tq2)
+            #     - 1 / 12 * einsum('ij,iklabc->jklabc', hf.foo, tt2)
+            # )
+            # quadruples_r = (
+            #     + i_q + 1 / 36 * direct_sum('ai,jklbcd->jklabcd', hf.fov, tt2)
+            #     + 1 / 144 * einsum('ba,ijklacde->ijklbcde', hf.fvv, tq2)
+            #     - 1 / 144 * einsum('ij, iklmabcd->jklmabcd', hf.foo, tq2)
+            # )
+
+            # equation from michael wormit:
+            # canonical Hylleraas equation multiplied by factor 4!.
+            # doubles_r = 0.25 * (
+            #     # sum_c + f_ac t2_ijcb + f_bc t2_ijac = +2 * sum_c f_bc t2_ijac
+            #     + 2 * einsum('bc,ijac->ijab', hf.fvv, td2)
+            #     # sum_c - f_ik t2_kjab - f_jk t2_ikab = -2 * sum_c f_jk t2_ikab
+            #     - 2 * einsum('jk,ikab->ijab', hf.foo, td2)
+            #     # const terms:
+            #     + 0.5 * einsum('abcd,ijcd->ijab', hf.vvvv, td1)
+            #     + 0.5 * einsum('klij,klab->ijab', hf.oooo, td1)
+            #     # sum_kc t_ikac <kb||jc> - t_jkac <kb||ic>
+            #     #      + t_jkbc <ka||ic> - t_ikbc <ka||jc>
+            #     #      = 4 * sum_kc t_ikac <kb||jc>
+            #     - 4 * einsum('kbjc,ikac->ijab', hf.ovov, td1)
+            # )
+            doubles_r = doubles_r.antisymmetrise((0, 1)).antisymmetrise((2, 3))
+            if singles_r.select_n_absmax(1)[0][1] > 1e3:
+                print("max value of T^S_2 residue too large.")
+                print(singles_r.select_n_absmax(3))
+                exit()
+            if doubles_r.select_n_absmax(1)[0][1] > 1e3:
+                print("max value of T^D_2 residue too large.")
+                print(doubles_r.select_n_absmax(3))
+                exit()
+
+            # update
+            ts2 -= 0.5 * singles_r
+            td2 -= 1.0 * doubles_r
+
+            # check norm of the residuals
+            norm_s = np.sqrt(einsum('ia,ia->', singles_r, singles_r))
+            norm_d = np.sqrt(einsum('ijab,ijab->', doubles_r, doubles_r))
+            print(f"{i+1}          {norm_s} / {norm_d}")
+            if np.sqrt(norm_s ** 2 + norm_d ** 2) < conv_tol:
+                print("Converged!")
+                break
+            elif np.sqrt(norm_s ** 2 + norm_d ** 2) > 1e3:
+                print("Second order wavefunction diverged.")
+                print(f"Singles norm: {norm_s}. Doubles norm: {norm_d}")
+        ts2_can = self.mp2_diffdm.ov
+        # sign of the canonical ts2 amplitudes is different!!
+        dif = ts2 + ts2_can
+        dif_norm = np.sqrt(einsum('ia,ia->', dif, dif))
+        max_dif = dif.select_n_absmax(3)
+        print("difference to canonical singles amplitudes:")
+        print(f"norm: {dif_norm}")
+        print(f"max dif: {max_dif}")
+        td2_can = self.td2(b.oovv)
+        dif = td2 - td2_can
+        dif_norm = np.sqrt(einsum('ijab,ijab->', dif, dif))
+        max_dif = dif.select_n_absmax(3)
+        print("difference to canonical doubles amplitudes:")
+        print(f"norm: {dif_norm}")
+        print(f"max dif: {max_dif}")
+        print("Converged 2nd order single amplitudes:\n", ts2)
+        return ts2
+
+    @cached_member_function
     def td2(self, space):
         """Return the T^D_2 term"""
         if space != b.oovv:
@@ -254,22 +397,13 @@ class LazyMp:
         contraction_str, eri_block = expressions[key]
         return einsum(contraction_str, self.t2oo, hf.eri(eri_block))
 
-    @cached_member_function
     def ts2(self, space):
         # no idea if this gives the correct amplitudes
         """Returns the second order singles amplitudes T^S_2."""
         if space != b.ov:
             raise NotImplementedError("T^S_2 term not implemented ",
                                       f"for space {space}.")
-        hf = self.reference_state
-        sp = split_spaces(space)
-        eia = self.df(sp[0] + sp[1])
-        return (
-            - 0.5 * (
-                + einsum('jkib,jkab->ia', hf.ooov, self.t2oo)
-                + einsum('jabc,ijbc->ia', hf.ovvv, self.t2oo)
-            ) / eia
-        )
+        return self.mp2_diffdm.ov
 
     @cached_property
     @timed_member_call(timer="timer")
@@ -281,7 +415,7 @@ class LazyMp:
         ret = OneParticleOperator(self.mospaces, is_symmetric=True)
         # NOTE: the following 3 blocks are equivalent to the cvs_p0 intermediates
         # defined at the end of this file
-        td = self.t2_hyl('o1o1v1v1')
+        td = self.t2_with_singles('o1o1v1v1')
         # ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
         ret.oo = -0.5 * einsum("ikab,jkab->ij", td, td)
         ret.ov = -0.5 * (
