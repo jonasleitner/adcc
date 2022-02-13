@@ -264,7 +264,7 @@ class LazyMp:
         #     + 0.25 * einsum('iabc,jkad->ijkbcd', hf.ovvv, td1)
         # )
         # i_q = (
-        #     + 1 / 16 * direct_sum('ijab,klcd->ijklabcd', hf.oovv, td1)
+        #     + 1 / 16 * einsum('ijab,klcd->ijklabcd', hf.oovv, td1)
         # )
 
         maxiter = 200
@@ -280,21 +280,19 @@ class LazyMp:
             )
             doubles_r = (
                 + i_d
-                # the direct_sum term below does something weird
-                # if neglecting this one, the result is correct.
-                + direct_sum('ai,jb->ijab', hf.fvo, ts2)
+                + einsum('ai,jb->ijab', hf.fvo, ts2)
                 + 0.5 * einsum('ba,ijac->ijbc', hf.fvv, td2)
                 # + 0.25 * einsum('ia,ijkabc->jkbc', hf.fov, tt2)
                 - 0.5 * einsum('ij,ikab->jkab', hf.foo, td2)
             )
             # triples_r = (
-            #     + i_t + 0.25 * direct_sum('ai,jkbc->ijkabc', hf.fvo, tt2)
+            #     + i_t + 0.25 * einsum('ai,jkbc->ijkabc', hf.fvo, tt2)
             #     + 1 / 12 * einsum('ba,ijkacd->ijkbcd', hf.fvv, tt2)
             #     + 1 / 36 * einsum('ia,ijklabcd->jklbcd', hf.ov, tq2)
             #     - 1 / 12 * einsum('ij,iklabc->jklabc', hf.foo, tt2)
             # )
             # quadruples_r = (
-            #     + i_q + 1 / 36 * direct_sum('ai,jklbcd->jklabcd', hf.fov, tt2)
+            #     + i_q + 1 / 36 * einsum('ai,jklbcd->jklabcd', hf.fov, tt2)
             #     + 1 / 144 * einsum('ba,ijklacde->ijklbcde', hf.fvv, tq2)
             #     - 1 / 144 * einsum('ij, iklmabcd->jklmabcd', hf.foo, tq2)
             # )
