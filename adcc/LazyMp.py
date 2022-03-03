@@ -225,23 +225,12 @@ class LazyMp:
         ts1 = self.ts1_hyl(space)
         td1 = self.t2_with_singles(b.oovv)
 
+        print("Computing iterative 2nd order ground state wavefunction "
+              "by minimizing the fourth order energy.")
+
         # guess setup
         ts2 = ts1.copy()
         td2 = td1.copy()
-
-        # some const intermediates (due to fixed first order amplitudes)
-        # i_s_nice = (
-        #     - einsum('jaib,jb->ia', hf.ovov, ts1)
-        #     - 0.5 * einsum('jabc,ijbc->ia', hf.ovvv, td1)
-        #     - 0.5 * einsum('jkib,jkab->ia', hf.ooov, td1)
-        # )
-        # i_d_nice = (
-        #     + 0.5 * einsum('ijka,kb->ijab', hf.ooov, ts1)
-        #     + 0.5 * einsum('icab,jc->ijab', hf.ovvv, ts1)
-        #     - einsum('kbjc,ikac->ijab', hf.ovov, td1)
-        #     + 0.125 * einsum('abcd,ijcd->ijab', hf.vvvv, td1)
-        #     + 0.125 * einsum('klij,klab->ijab', hf.oooo, td1)
-        # )
 
         # terms that do not depend on the second order amplitudes.
         # Constant, because the first oder amplitudes are kept fixed.
@@ -258,19 +247,17 @@ class LazyMp:
             + 1 / 8 * einsum('cdab,ijab->ijcd', hf.vvvv, td1)
             + 1 / 8 * einsum('ijkl,ijab->klab', hf.oooo, td1)
         )
-        # i_t = (
-        #     + 0.25 * einsum('ijab,kc->ijkabc', hf.oovv, ts1)
-        #     + 0.25 * einsum('jkia,ilbc->jklabc', hf.ooov, td1)
-        #     + 0.25 * einsum('iabc,jkad->ijkbcd', hf.ovvv, td1)
-        # )
+        i_t = (
+            + 0.25 * einsum('ijab,kc->ijkabc', hf.oovv, ts1)
+            + 0.25 * einsum('jkia,ilbc->jklabc', hf.ooov, td1)
+            + 0.25 * einsum('iabc,jkad->ijkbcd', hf.ovvv, td1)
+        )
         # i_q = (
         #     + 1 / 16 * einsum('ijab,klcd->ijklabcd', hf.oovv, td1)
         # )
 
         maxiter = 200
         conv_tol = 1e-15
-        print("Computing iterative 2nd order ground state wavefunction "
-              "by minimizing the fourth order energy.")
         print("Residue norm:     Singles    Doubles")
         for i in range(maxiter):
             singles_r = (
@@ -285,12 +272,12 @@ class LazyMp:
                 # + 0.25 * einsum('ia,ijkabc->jkbc', hf.fov, tt2)
                 - 0.5 * einsum('ij,ikab->jkab', hf.foo, td2)
             )
-            # triples_r = (
-            #     + i_t + 0.25 * einsum('ai,jkbc->ijkabc', hf.fvo, tt2)
-            #     + 1 / 12 * einsum('ba,ijkacd->ijkbcd', hf.fvv, tt2)
-            #     + 1 / 36 * einsum('ia,ijklabcd->jklbcd', hf.ov, tq2)
-            #     - 1 / 12 * einsum('ij,iklabc->jklabc', hf.foo, tt2)
-            # )
+            triples_r = (
+                + i_t + 0.25 * einsum('ai,jkbc->ijkabc', hf.fvo, tt2)
+                + 1 / 12 * einsum('ba,ijkacd->ijkbcd', hf.fvv, tt2)
+                # + 1 / 36 * einsum('ia,ijklabcd->jklbcd', hf.ov, tq2)
+                - 1 / 12 * einsum('ij,iklabc->jklabc', hf.foo, tt2)
+            )
             # quadruples_r = (
             #     + i_q + 1 / 36 * einsum('ai,jklbcd->jklabcd', hf.fov, tt2)
             #     + 1 / 144 * einsum('ba,ijklacde->ijklbcde', hf.fvv, tq2)
