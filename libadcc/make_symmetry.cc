@@ -328,14 +328,14 @@ std::shared_ptr<Symmetry> make_symmetry_operator_basis(
 }
 
 std::shared_ptr<Symmetry> make_symmetry_triples(std::shared_ptr<const MoSpaces> mospaces_ptr,
-						const std::string& space) {
+			const std::string& space) {
   auto sym = std::make_shared<Symmetry>(mospaces_ptr, space);
 
   const std::vector<std::string>& ss = sym->subspaces();
   const MoSpaces& mo		     = *mospaces_ptr;
   if (sym->ndim() != 6) {
     throw invalid_argument("Expected exactly a six dimensional space string, not " +
-		           space + ".");
+		                       space + ".");
   }
 
   std::vector<std::string> permutations{"ijklmn"};

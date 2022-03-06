@@ -140,5 +140,64 @@ class ThreeParticleOperator:
             sl = tuple(slices[s] for s in spaces)
             # rowslice, colslice = slices[sp1], slices[sp2]
             dm_block = self[block].to_ndarray()
+            # unpacking in subscript -> python3.11
             ret[sl[0], sl[1], sl[2], sl[3], sl[4], sl[5]] = dm_block
         return ret
+
+    def copy(self):
+        """
+        Return a deep copy of the OneParticleOperator
+        """
+        ret = ThreeParticleOperator(self.mospaces)
+        for b in self.blocks_nonzero:
+            ret[b] = self.block(b).copy()
+        if hasattr(self, "reference_state"):
+            ret.reference_state = self.reference_state
+        return ret
+
+    def __iadd__(self, other):
+        if self.mospaces != other.mospaces:
+            raise ValueError("Cannot add ThreeParticleOperators with "
+                             "differing mospaces.")
+
+        for b in other.blocks_nonzero:
+            if self.is_zero_block(b):
+                self[b] = other.block(b).copy()
+            else:
+                self[b] = self.block(b) + other.block(b)
+
+        # Update ReferenceState pointer
+        if hasattr(self, "reference_state"):
+            if hasattr(other, "reference_state") \
+                    and self.reference_state != other.reference_state:
+                delattr(self, "reference_state")
+        return self
+
+    def __add__(self, other):
+        return self.copy().__iadd__(other)
+
+    def __isub__(self, other):
+        if self.mospaces != other.mospaces:
+            raise ValueError("Cannot subtract ThreeParticleOperators with "
+                             "differing mospaces.")
+
+        for b in other.blocks_nonzero:
+            if self.is_zero_block(b):
+                self[b] = -1.0 * other.block(b)  # The copy is implicit
+            else:
+                self[b] = self.block(b) - other.block(b)
+
+        # Update ReferenceState pointer
+        if hasattr(self, "reference_state"):
+            if hasattr(other, "reference_state") \
+                    and self.reference_state != other.reference_state:
+                delattr(self, "reference_state")
+        return self
+
+    def __sub__(self, other):
+        return self.copy().__isub__(other)
+
+    def evaluate(self):
+        for b in self.blocks_nonzero:
+            self.block(b).evaluate()
+        return self
