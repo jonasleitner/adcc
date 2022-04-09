@@ -224,107 +224,55 @@ class LazyMp:
 
         hf = self.reference_state
         # first order amplitudes from minimizing E(2)
-        # ts1 = self.ts1_hyl(space)
-        # td1 = self.t2_with_singles(b.oovv)
         td1 = self.t2_hyl(b.oovv)
 
         print("Computing iterative 2nd order ground state wavefunction "
               "by minimizing the fourth order energy.")
 
-        # guess setup
-        # ts2 = ts1.copy()
-        ts2 = OneParticleOperator(self.mospaces).ov.ones_like()
+        # guess setup (zeros for singles, triples, quadruples)
+        ts2 = OneParticleOperator(self.mospaces).ov.zeros_like()
         td2 = td1.copy()
 
-        # terms that do not depend on the second order amplitudes.
-        # Constant, because the first oder amplitudes are kept fixed.
-        # <2|(H1 - E1)|1>:
-        # i_s = (
-        #     - einsum('ibja,ia->jb', hf.ovov, ts1)
-        #     + 0.5 * einsum('icab,ijab->jc', hf.ovvv, td1)
-        #     + 0.5 * einsum('ijka,ijab->kb', hf.ooov, td1)
-        # ).evaluate()
-        # i_d = (
-        #     + 0.5 * einsum('jkia,ib->jkab', hf.ooov, ts1)
-        #     + 0.5 * einsum('iabc,ja->ijbc', hf.ovvv, ts1)
-        #     - einsum('ibja,ikac->jkbc', hf.ovov, td1)
-        #     + 1 / 8 * einsum('cdab,ijab->ijcd', hf.vvvv, td1)
-        #     + 1 / 8 * einsum('ijkl,ijab->klab', hf.oooo, td1)
-        # ).evaluate()
-        # i_t = (
-        #     + 0.25 * einsum('ijab,kc->ijkabc', hf.oovv, ts1)
-        #     + 0.25 * einsum('jkia,ilbc->jklabc', hf.ooov, td1)
-        #     + 0.25 * einsum('iabc,jkad->ijkbcd', hf.ovvv, td1)
-        # )
-        # i_q = (
-        #     + 1 / 16 * einsum('ijab,klcd->ijklabcd', hf.oovv, td1)
-        # )
-
         # switch to numpy
-        # ts1_np = ts1.to_ndarray()
         td1_np = td1.to_ndarray()
         ts2_np = ts2.to_ndarray()
         td2_np = td2.to_ndarray()
         o = self.mospaces.n_orbs('o1')
         v = self.mospaces.n_orbs('v1')
-        tt2_np = np.ones((o, o, o, v, v, v))
+        tt2_np = np.zeros((o, o, o, v, v, v))
         tq2_np = np.zeros((o, o, o, o, v, v, v, v))
-        # start with correct sym guess for triples? -> how?
-        tt2_np = triple_symmetry_guess(o, v)
-        # tt2_np = np.random.rand(o, o, o, v, v, v)
 
-        i_s_np = (
-            # - np.einsum('ibja,ia->jb', hf.ovov.to_ndarray(), ts1_np)
-            + 0.5 * np.einsum('icab,ijab->jc', hf.ovvv.to_ndarray(), td1_np)
-            + 0.5 * np.einsum('ijka,ijab->kb', hf.ooov.to_ndarray(), td1_np)
+        # Currently the following expansion is assumed below:
+        # |Psi^(1)> = + t1s |s> - t1d |d>
+        # |Psi^(2)> = + t2s |s> + t2d |d> + t2t |t> + t2q |q>
+
+        # terms that do not depend on the second order amplitudes.
+        # Constant, because the first oder amplitudes are kept fixed.
+        # <2|(H1 - E1)|1>:
+        i_s_np = (  # changed sign of all terms (wrt to sympy result)
+            - 0.5 * np.einsum('icab,ijab->jc', hf.ovvv.to_ndarray(), td1_np)
+            - 0.5 * np.einsum('ijka,ijab->kb', hf.ooov.to_ndarray(), td1_np)
         )
-        i_d_np = (
-            # + 0.5 * np.einsum('jkia,ib->jkab', hf.ooov.to_ndarray(), ts1_np)
-            # + 0.5 * np.einsum('iabc,ja->ijbc', hf.ovvv.to_ndarray(), ts1_np)
-            - np.einsum('ibja,ikac->jkbc', hf.ovov.to_ndarray(), td1_np)
-            + 1 / 8 * np.einsum('cdab,ijab->ijcd', hf.vvvv.to_ndarray(), td1_np)
-            + 1 / 8 * np.einsum('ijkl,ijab->klab', hf.oooo.to_ndarray(), td1_np)
+        i_d_np = (  # changed sign of all terms (wrt to sympy result)
+            + np.einsum('ibja,ikac->jkbc', hf.ovov.to_ndarray(), td1_np)
+            - 1 / 8 * np.einsum('cdab,ijab->ijcd', hf.vvvv.to_ndarray(), td1_np)
+            - 1 / 8 * np.einsum('ijkl,ijab->klab', hf.oooo.to_ndarray(), td1_np)
         )
-        i_t_np = (
-            # + 0.25 * np.einsum('ijab,kc->ijkabc', hf.oovv.to_ndarray(), ts1_np)
-            + 0.25 * np.einsum('jkia,ilbc->jklabc', hf.ooov.to_ndarray(), td1_np)
-            + 0.25 * np.einsum('iabc,jkad->ijkbcd', hf.ovvv.to_ndarray(), td1_np)
+        i_t_np = (  # changed sign of all terms (wrt to sympy result)
+            - 0.25 * np.einsum('jkia,ilbc->jklabc', hf.ooov.to_ndarray(), td1_np)
+            - 0.25 * np.einsum('iabc,jkad->ijkbcd', hf.ovvv.to_ndarray(), td1_np)
         )
-        i_q_np = (
-            + 1 / 16 * np.einsum(
+        i_q_np = (  # changed sign of all terms (wrt to sympy result)
+            - 1 / 16 * np.einsum(
                 'ijab,klcd->ijklabcd', hf.oovv.to_ndarray(), td1_np
             )
         )
 
         maxiter = 500
         conv_tol = 1e-15
-        print("Residue norm:     Singles    Doubles")
+        spaces = ["Singles", "Doubles", "Triples", "Quadruples"]
+        print("Residue norm:     ", "               ".join(spaces))
         for i in range(maxiter):
-            # singles_r = (
-            #     + i_s + einsum('ba,ia->ib', hf.fvv, ts2)
-            #     + einsum('ia,ijab->jb', hf.fov, td2)
-            #     - einsum('ij,ia->ja', hf.foo, ts2)
-            # )
-            # doubles_r = (
-            #     + i_d
-            #     + einsum('ai,jb->ijab', hf.fvo, ts2)
-            #     + 0.5 * einsum('ba,ijac->ijbc', hf.fvv, td2)
-            #     # + 0.25 * einsum('ia,ijkabc->jkbc', hf.fov, tt2)
-            #     - 0.5 * einsum('ij,ikab->jkab', hf.foo, td2)
-            # )
-            # doubles_r = doubles_r.antisymmetrise((0, 1)).antisymmetrise((2, 3))
-            # triples_r = (
-            #     + i_t + 0.25 * einsum('ai,jkbc->ijkabc', hf.fvo, td2)
-            #     + 1 / 12 * einsum('ba,ijkacd->ijkbcd', hf.fvv, tt2)
-            #     # + 1 / 36 * einsum('ia,ijklabcd->jklbcd', hf.fov, tq2)
-            #     - 1 / 12 * einsum('ij,iklabc->jklabc', hf.foo, tt2)
-            # )
-            # quadruples_r = (
-            #     + i_q + 1 / 36 * einsum('ai,jklbcd->ijklabcd', hf.fvo, tt2)
-            #     + 1 / 144 * einsum('ba,ijklacde->ijklbcde', hf.fvv, tq2)
-            #     - 1 / 144 * einsum('ij, iklmabcd->jklmabcd', hf.foo, tq2)
-            # )
-
             # switch to np
             singles_r = (
                 + i_s_np + np.einsum('ba,ia->ib', hf.fvv.to_ndarray(), ts2_np)
@@ -353,41 +301,25 @@ class LazyMp:
                     'ij,iklabc->jklabc', hf.foo.to_ndarray(), tt2_np
                 )
             )
-            # setting up the correct symmetry for the triples leads to
-            # convergence problems.... residue is not going to 0
-            # without the sym convergence is achieved rather fast
-            # However, the result will not be correct probably...
-            # occ
-            # print("max triples before sym: ", np.amax(triples_r))
-            triples_r = 0.5 * (triples_r - np.moveaxis(triples_r, 0, 1))  # jik
-            triples_r = 0.5 * (triples_r - np.moveaxis(triples_r, 1, 2))  # ikj
-            # the antisym below makes the triples explode...
-            triples_r = 0.5 * (
-                triples_r - np.moveaxis(triples_r, [0, 2], [2, 0])  # kji
+            # Need to set up the whole symmetry of bra/ket at once!!
+
+            # occ: (1 - P_ij - P_jk)(1 - P_ik)
+            triples_r = 1 / 6 * (
+                triples_r - np.moveaxis(triples_r, 0, 1)  # jik
+                - np.moveaxis(triples_r, 1, 2)  # ikj
+                - np.moveaxis(triples_r, [0, 2], [2, 0])  # kji
+                + np.moveaxis(triples_r, [0, 1, 2], [2, 0, 1])  # jki
+                + np.moveaxis(triples_r, [0, 1, 2], [1, 2, 0])  # kij
             )
-            # print("max triples after occ antisym: ", np.amax(triples_r))
-            triples_r = 0.5 * (
-                triples_r + np.moveaxis(triples_r, [0, 1, 2], [2, 0, 1])  # jki
+            # virt: (1 - P_ab - P_bc)(1 - P_ac)
+            triples_r = 1 / 6 * (
+                triples_r - np.moveaxis(triples_r, 3, 4)  # bac
+                - np.moveaxis(triples_r, 4, 5)  # acb
+                - np.moveaxis(triples_r, [3, 5], [5, 3])  # cba
+                + np.moveaxis(triples_r, [3, 4, 5], [5, 3, 4])  # bca
+                + np.moveaxis(triples_r, [3, 4, 5], [4, 5, 3])  # cab
             )
-            triples_r = 0.5 * (
-                triples_r + np.moveaxis(triples_r, [0, 1, 2], [1, 2, 0])  # kij
-            )
-            # print("max triples after occ sym: ", np.amax(triples_r))
-            # # virt
-            triples_r = 0.5 * (triples_r - np.moveaxis(triples_r, 3, 4))  # bac
-            triples_r = 0.5 * (triples_r - np.moveaxis(triples_r, 4, 5))  # acb
-            # for some reason the antisym below makes the triples explode
-            triples_r = 0.5 * (
-                triples_r - np.moveaxis(triples_r, [3, 5], [5, 3])  # cba
-            )
-            # print("max triples after virt antisym: ", np.amax(triples_r))
-            triples_r = 0.5 * (
-                triples_r + np.moveaxis(triples_r, [3, 4, 5], [5, 3, 4])  # bca
-            )
-            triples_r = 0.5 * (
-                triples_r + np.moveaxis(triples_r, [3, 4, 5], [4, 5, 3])  # cab
-            )
-            # print("max triples residue after complete sym: ", np.amax(triples_r))
+
             quadruples_r = (
                 + i_q_np
                 + 1 / 36 * np.einsum(
@@ -400,9 +332,61 @@ class LazyMp:
                     'ij, iklmabcd->jklmabcd', hf.foo.to_ndarray(), tq2_np
                 )
             )
+            # occ: (1 - P_ij - P_ik - P_il)(1 - P_jk - P_jl)(1 - P_kl)
+            quadruples_r = 1 / 24 * (
+                quadruples_r - np.moveaxis(quadruples_r, 2, 3)  # ijlk
+                - np.moveaxis(quadruples_r, 1, 2)  # ikjl
+                + np.moveaxis(quadruples_r, [1, 2, 3], [3, 1, 2])  # iklj
+                - np.moveaxis(quadruples_r, [1, 3], [3, 1])  # ilkj
+                + np.moveaxis(quadruples_r, [1, 2, 3], [2, 3, 1])  # iljk
+                - np.moveaxis(quadruples_r, 0, 1)  # jikl
+                + np.moveaxis(quadruples_r, [0, 2], [1, 3])  # jilk
+                + np.moveaxis(quadruples_r, [0, 1, 2], [2, 0, 1])  # jkil
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 0, 1, 2])  # jkli
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 0, 2, 1])  # jlki
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 0, 3, 1])  # jlik
+                - np.moveaxis(quadruples_r, [0, 2], [2, 0])  # kjil
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 1, 0, 2])  # kjli
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 2, 0, 3])  # kijl
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 3, 0, 2])  # kilj
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 3, 0, 1])  # klij
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 2, 0, 1])  # klji
+                - np.moveaxis(quadruples_r, [0, 3], [3, 0])  # ljki
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 1, 3, 0])  # ljik
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 2, 1, 0])  # lkji
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 3, 1, 0])  # lkij
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 3, 2, 0])  # likj
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 2, 3, 0])  # lijk
+            )
+            # virt: (1 - P_ab - P_ac - P_ad)(1 - P_bc - P_bd)(1 - P_cd)
+            quadruples_r = 1 / 24 * (
+                quadruples_r - np.moveaxis(quadruples_r, 6, 7)  # abdc
+                - np.moveaxis(quadruples_r, 5, 6)  # acbd
+                + np.moveaxis(quadruples_r, [5, 6, 7], [7, 5, 6])  # acdb
+                - np.moveaxis(quadruples_r, [5, 7], [7, 5])  # adcb
+                + np.moveaxis(quadruples_r, [5, 6, 7], [6, 7, 5])  # adbc
+                - np.moveaxis(quadruples_r, 4, 5)  # bacd
+                + np.moveaxis(quadruples_r, [4, 6], [5, 7])  # badc
+                + np.moveaxis(quadruples_r, [4, 5, 6], [6, 4, 5])  # bcad
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 4, 5, 6])  # bcda
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 4, 6, 5])  # bdca
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 4, 7, 5])  # bdac
+                - np.moveaxis(quadruples_r, [4, 6], [6, 4])  # cbad
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 5, 4, 6])  # cbda
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 6, 4, 7])  # cabd
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 7, 4, 6])  # cadb
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 7, 4, 5])  # cdab
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 6, 4, 5])  # cdba
+                - np.moveaxis(quadruples_r, [4, 7], [7, 4])  # dbca
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 5, 7, 4])  # dbac
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 6, 5, 4])  # dcba
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 7, 5, 4])  # dcab
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 7, 6, 4])  # dacb
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 6, 7, 4])  # dabc
+            )
 
             # equation from michael wormit:
-            # canonical Hylleraas equation multiplied by factor 4!.
+            # canonical Hylleraas equation multiplied by factor 4!
             # doubles_r = 0.25 * (
             #     # sum_c + f_ac t2_ijcb + f_bc t2_ijac = +2 * sum_c f_bc t2_ijac
             #     + 2 * einsum('bc,ijac->ijab', hf.fvv, td2)
@@ -426,16 +410,12 @@ class LazyMp:
             #     exit()
 
             # update
-            # ts2 -= 0.5 * singles_r
-            # td2 -= 1.0 * doubles_r
             ts2_np -= 0.5 * singles_r
             td2_np -= 1.0 * doubles_r
-            tt2_np -= 0.5 * triples_r
-            tq2_np -= 75.0 * quadruples_r
+            tt2_np -= 8.0 * triples_r
+            tq2_np -= 111.0 * quadruples_r
 
             # check norm of the residuals
-            # norm_s = np.sqrt(einsum('ia,ia->', singles_r, singles_r))
-            # norm_d = np.sqrt(einsum('ijab,ijab->', doubles_r, doubles_r))
             norm_s = np.sqrt(np.einsum('ia,ia->', singles_r, singles_r))
             norm_d = np.sqrt(np.einsum('ijab,ijab->', doubles_r, doubles_r))
             norm_t = np.sqrt(np.einsum('ijkabc,ijkabc->', triples_r, triples_r))
@@ -443,48 +423,267 @@ class LazyMp:
                 'ijklabcd,ijklabcd->', quadruples_r, quadruples_r)
             )
             print(f"{i+1}          {norm_s} / {norm_d} / {norm_t} / {norm_q}")
-            if np.sqrt(norm_s ** 2 + norm_d ** 2 + norm_t ** 2) < conv_tol:
+            if np.sqrt(norm_s ** 2 + norm_d ** 2 + norm_t ** 2 + norm_q ** 2) \
+                    < conv_tol:
                 print("Converged!")
                 break
-            elif np.sqrt(norm_s ** 2 + norm_d ** 2) > 1e3:
+            elif any([norm > 1e3 for norm in
+                     [norm_s ** 2, norm_d ** 2, norm_t ** 2, norm_q ** 2]]):
                 print("Second order wavefunction diverged.")
-                print(f"Singles norm: {norm_s}. Doubles norm: {norm_d}")
+                break
+
         ts2_can = self.mp2_diffdm.ov
-        # sign of the canonical ts2 amplitudes is different!!
-        # dif = ts2 + ts2_can
-        # dif = ts2 + ts2_can.to_ndarray()
-        # dif_norm = np.sqrt(einsum('ia,ia->', dif, dif))
-        dif = ts2_np + ts2_can.to_ndarray()
+        dif = ts2_np - ts2_can.to_ndarray()
         dif_norm = np.sqrt(np.einsum('ia,ia->', dif, dif))
-        # max_dif = dif.select_n_absmax(3)
         print("difference to canonical singles amplitudes:")
         print(f"norm: {dif_norm}")
-        # print(f"max dif: {max_dif}")
+        print("max difference: ", np.amax(dif))
+
         td2_can = self.td2(b.oovv)
-        # dif = td2 - td2_can
-        # dif = td2 - td2_can.to_ndarray()
-        # dif_norm = np.sqrt(einsum('ijab,ijab->', dif, dif))
-        dif = td2_np - td2_can.to_ndarray()
+        dif = td2_np + td2_can.to_ndarray()  # different sign apparently
         dif_norm = np.sqrt(np.einsum('ijab,ijab->', dif, dif))
-        # max_dif = dif.select_n_absmax(3)
         print("difference to canonical doubles amplitudes:")
         print(f"norm: {dif_norm}")
-        # print(f"max dif: {max_dif}")
-        # print("Converged 2nd order single amplitudes:\n", ts2)
-        # print("Converged 2nd order single amplitudes:\n", ts2_np)
-        # return ts2
-        norm = np.sqrt(np.einsum('ijkabc,ijkabc->', tt2_np, tt2_np))
-        print(f"Triples norm: {norm}")
-        print("number of triples >0.1: ", (np.abs(tt2_np) > 0.1).sum())
+        print("max difference: ", np.amax(dif))
+
         tt2_can = self.tt2(b.ooovvv)
-        print("number of canonical triples >0.1: ", (np.abs(tt2_can) > 0.1).sum())
         dif = tt2_np - tt2_can
         dif_norm = np.sqrt(np.einsum('ijkabc,ijkabc->', dif, dif))
         print("difference to canonical triples amplitudes:\nnorm: ", dif_norm)
-        # print(f"Tiples:\n{tt2_np}")
-        print("max value of can triples: ", np.amax(np.abs(tt2_can)))
-        print("Quadruples norm: ",
-              np.sqrt(np.einsum('ijklabcd,ijklabcd->', tq2_np, tq2_np)))
+        print("max difference: ", np.amax(dif))
+
+        tq2_can = self.tq2(b.oooovvvv)
+        dif = tq2_np - tq2_can
+        dif_norm = np.sqrt(np.einsum('ijklabcd,ijklabcd->', dif, dif))
+        print("difference to canonical quadruple amplitudes:\nnorm: ", dif_norm)
+        print("max difference: ", np.amax(dif))
+        return OneParticleOperator(self.mospaces).ov.set_from_ndarray(ts2_np, 1e-15)
+
+    @cached_member_function
+    def ts2_with_singles(self, space):
+        """Second order iterative singles amplitudes with first order
+           single amplitudes."""
+        if space != b.ov:
+            raise NotImplementedError("T^S_2 term not implemented "
+                                      f"for space {space}.")
+
+        hf = self.reference_state
+        # first order amplitudes from minimizing E(2)
+        ts1 = self.ts1_hyl(space)
+        td1 = self.t2_with_singles(b.oovv)
+
+        print("Computing iterative 2nd order ground state wavefunction "
+              "with first order singles "
+              "by minimizing the fourth order energy.")
+
+        # guess setup (zeros for Triples and Quadruples)
+        ts2 = ts1.copy()
+        td2 = td1.copy()
+
+        # switch to numpy
+        ts1_np = ts1.to_ndarray()
+        td1_np = td1.to_ndarray()
+        ts2_np = ts2.to_ndarray()
+        td2_np = td2.to_ndarray()
+        o = self.mospaces.n_orbs('o1')
+        v = self.mospaces.n_orbs('v1')
+        tt2_np = np.zeros((o, o, o, v, v, v))
+        tq2_np = np.zeros((o, o, o, o, v, v, v, v))
+
+        # Currently the following expansion is assumed below:
+        # |Psi^(1)> = - t1s |s> - t1d |d>
+        # |Psi^(2)> = + t2s |s> + t2d |d> + t2t |t> + t2q |q>
+
+        # terms that do not depend on the second order amplitudes.
+        # Constant, because the first oder amplitudes are kept fixed.
+        # <2|(H1 - E1)|1>:
+        i_s_np = (  # changed sign of all terms (wrt to sympy result)
+            + np.einsum('ibja,ia->jb', hf.ovov.to_ndarray(), ts1_np)
+            - 0.5 * np.einsum('icab,ijab->jc', hf.ovvv.to_ndarray(), td1_np)
+            - 0.5 * np.einsum('ijka,ijab->kb', hf.ooov.to_ndarray(), td1_np)
+        )
+        i_d_np = (  # changed sign of all terms (wrt to sympy result)
+            - 0.5 * np.einsum('jkia,ib->jkab', hf.ooov.to_ndarray(), ts1_np)
+            - 0.5 * np.einsum('iabc,ja->ijbc', hf.ovvv.to_ndarray(), ts1_np)
+            + np.einsum('ibja,ikac->jkbc', hf.ovov.to_ndarray(), td1_np)
+            - 1 / 8 * np.einsum('cdab,ijab->ijcd', hf.vvvv.to_ndarray(), td1_np)
+            - 1 / 8 * np.einsum('ijkl,ijab->klab', hf.oooo.to_ndarray(), td1_np)
+        )
+        i_t_np = (  # changed sign of all terms (wrt to sympy result)
+            - 0.25 * np.einsum('ijab,kc->ijkabc', hf.oovv.to_ndarray(), ts1_np)
+            - 0.25 * np.einsum('jkia,ilbc->jklabc', hf.ooov.to_ndarray(), td1_np)
+            - 0.25 * np.einsum('iabc,jkad->ijkbcd', hf.ovvv.to_ndarray(), td1_np)
+        )
+        i_q_np = (  # changed sign of all terms (wrt to sympy result)
+            - 1 / 16 * np.einsum(
+                'ijab,klcd->ijklabcd', hf.oovv.to_ndarray(), td1_np
+            )
+        )
+
+        maxiter = 500
+        conv_tol = 1e-15
+        spaces = ["Singles", "Doubles", "Triples", "Quadruples"]
+        print("Residue norm:     ", "               ".join(spaces))
+        for i in range(maxiter):
+            # switch to np
+            singles_r = (
+                + i_s_np + np.einsum('ba,ia->ib', hf.fvv.to_ndarray(), ts2_np)
+                + np.einsum('ia,ijab->jb', hf.fov.to_ndarray(), td2_np)
+                - np.einsum('ij,ia->ja', hf.foo.to_ndarray(), ts2_np)
+            )
+            doubles_r = (
+                + i_d_np
+                + np.einsum('ai,jb->ijab', hf.fvo.to_ndarray(), ts2_np)
+                + 0.5 * np.einsum('ba,ijac->ijbc', hf.fvv.to_ndarray(), td2_np)
+                + 0.25 * np.einsum('ia,ijkabc->jkbc', hf.fov.to_ndarray(), tt2_np)
+                - 0.5 * np.einsum('ij,ikab->jkab', hf.foo.to_ndarray(), td2_np)
+            )
+            doubles_r = 0.5 * (doubles_r - np.moveaxis(doubles_r, 0, 1))
+            doubles_r = 0.5 * (doubles_r - np.moveaxis(doubles_r, 2, 3))
+            triples_r = (
+                + i_t_np
+                + 0.25 * np.einsum('ai,jkbc->ijkabc', hf.fvo.to_ndarray(), td2_np)
+                + 1 / 12 * np.einsum(
+                    'ba,ijkacd->ijkbcd', hf.fvv.to_ndarray(), tt2_np
+                )
+                + 1 / 36 * np.einsum(
+                    'ia,ijklabcd->jklbcd', hf.fov.to_ndarray(), tq2_np
+                )
+                - 1 / 12 * np.einsum(
+                    'ij,iklabc->jklabc', hf.foo.to_ndarray(), tt2_np
+                )
+            )
+            # Need to set up the whole symmetry of bra/ket at once!!
+
+            # occ: (1 - P_ij - P_jk)(1 - P_ik)
+            triples_r = 1 / 6 * (
+                triples_r - np.moveaxis(triples_r, 0, 1)  # jik
+                - np.moveaxis(triples_r, 1, 2)  # ikj
+                - np.moveaxis(triples_r, [0, 2], [2, 0])  # kji
+                + np.moveaxis(triples_r, [0, 1, 2], [2, 0, 1])  # jki
+                + np.moveaxis(triples_r, [0, 1, 2], [1, 2, 0])  # kij
+            )
+            # virt: (1 - P_ab - P_bc)(1 - P_ac)
+            triples_r = 1 / 6 * (
+                triples_r - np.moveaxis(triples_r, 3, 4)  # bac
+                - np.moveaxis(triples_r, 4, 5)  # acb
+                - np.moveaxis(triples_r, [3, 5], [5, 3])  # cba
+                + np.moveaxis(triples_r, [3, 4, 5], [5, 3, 4])  # bca
+                + np.moveaxis(triples_r, [3, 4, 5], [4, 5, 3])  # cab
+            )
+
+            quadruples_r = (
+                + i_q_np
+                + 1 / 36 * np.einsum(
+                    'ai,jklbcd->ijklabcd', hf.fvo.to_ndarray(), tt2_np
+                )
+                + 1 / 144 * np.einsum(
+                    'ba,ijklacde->ijklbcde', hf.fvv.to_ndarray(), tq2_np
+                )
+                - 1 / 144 * np.einsum(
+                    'ij, iklmabcd->jklmabcd', hf.foo.to_ndarray(), tq2_np
+                )
+            )
+            # occ: (1 - P_ij - P_ik - P_il)(1 - P_jk - P_jl)(1 - P_kl)
+            quadruples_r = 1 / 24 * (
+                quadruples_r - np.moveaxis(quadruples_r, 2, 3)  # ijlk
+                - np.moveaxis(quadruples_r, 1, 2)  # ikjl
+                + np.moveaxis(quadruples_r, [1, 2, 3], [3, 1, 2])  # iklj
+                - np.moveaxis(quadruples_r, [1, 3], [3, 1])  # ilkj
+                + np.moveaxis(quadruples_r, [1, 2, 3], [2, 3, 1])  # iljk
+                - np.moveaxis(quadruples_r, 0, 1)  # jikl
+                + np.moveaxis(quadruples_r, [0, 2], [1, 3])  # jilk
+                + np.moveaxis(quadruples_r, [0, 1, 2], [2, 0, 1])  # jkil
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 0, 1, 2])  # jkli
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 0, 2, 1])  # jlki
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 0, 3, 1])  # jlik
+                - np.moveaxis(quadruples_r, [0, 2], [2, 0])  # kjil
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 1, 0, 2])  # kjli
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 2, 0, 3])  # kijl
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 3, 0, 2])  # kilj
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 3, 0, 1])  # klij
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 2, 0, 1])  # klji
+                - np.moveaxis(quadruples_r, [0, 3], [3, 0])  # ljki
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 1, 3, 0])  # ljik
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [3, 2, 1, 0])  # lkji
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [2, 3, 1, 0])  # lkij
+                + np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 3, 2, 0])  # likj
+                - np.moveaxis(quadruples_r, [0, 1, 2, 3], [1, 2, 3, 0])  # lijk
+            )
+            # virt: (1 - P_ab - P_ac - P_ad)(1 - P_bc - P_bd)(1 - P_cd)
+            quadruples_r = 1 / 24 * (
+                quadruples_r - np.moveaxis(quadruples_r, 6, 7)  # abdc
+                - np.moveaxis(quadruples_r, 5, 6)  # acbd
+                + np.moveaxis(quadruples_r, [5, 6, 7], [7, 5, 6])  # acdb
+                - np.moveaxis(quadruples_r, [5, 7], [7, 5])  # adcb
+                + np.moveaxis(quadruples_r, [5, 6, 7], [6, 7, 5])  # adbc
+                - np.moveaxis(quadruples_r, 4, 5)  # bacd
+                + np.moveaxis(quadruples_r, [4, 6], [5, 7])  # badc
+                + np.moveaxis(quadruples_r, [4, 5, 6], [6, 4, 5])  # bcad
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 4, 5, 6])  # bcda
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 4, 6, 5])  # bdca
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 4, 7, 5])  # bdac
+                - np.moveaxis(quadruples_r, [4, 6], [6, 4])  # cbad
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 5, 4, 6])  # cbda
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 6, 4, 7])  # cabd
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 7, 4, 6])  # cadb
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 7, 4, 5])  # cdab
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 6, 4, 5])  # cdba
+                - np.moveaxis(quadruples_r, [4, 7], [7, 4])  # dbca
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 5, 7, 4])  # dbac
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [7, 6, 5, 4])  # dcba
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [6, 7, 5, 4])  # dcab
+                + np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 7, 6, 4])  # dacb
+                - np.moveaxis(quadruples_r, [4, 5, 6, 7], [5, 6, 7, 4])  # dabc
+            )
+
+            # update
+            ts2_np -= 0.5 * singles_r
+            td2_np -= 1.0 * doubles_r
+            tt2_np -= 8.0 * triples_r
+            tq2_np -= 111.0 * quadruples_r
+
+            # check norm of the residuals
+            norm_s = np.sqrt(np.einsum('ia,ia->', singles_r, singles_r))
+            norm_d = np.sqrt(np.einsum('ijab,ijab->', doubles_r, doubles_r))
+            norm_t = np.sqrt(np.einsum('ijkabc,ijkabc->', triples_r, triples_r))
+            norm_q = np.sqrt(np.einsum(
+                'ijklabcd,ijklabcd->', quadruples_r, quadruples_r)
+            )
+            print(f"{i+1}          {norm_s} / {norm_d} / {norm_t} / {norm_q}")
+            if np.sqrt(norm_s ** 2 + norm_d ** 2 + norm_t ** 2 + norm_q ** 2) \
+                    < conv_tol:
+                print("Converged!")
+                break
+            elif any([norm > 1e3 for norm in (norm_s, norm_d, norm_t, norm_q)]):
+                print("Second order wavefunction diverged.")
+                break
+
+        ts2_can = self.mp2_diffdm.ov
+        dif = ts2_np - ts2_can.to_ndarray()
+        dif_norm = np.sqrt(np.einsum('ia,ia->', dif, dif))
+        print("difference to canonical singles amplitudes:")
+        print(f"norm: {dif_norm}")
+        print("max difference: ", np.amax(dif))
+
+        td2_can = self.td2(b.oovv)
+        dif = td2_np + td2_can.to_ndarray()  # different sign apparently
+        dif_norm = np.sqrt(np.einsum('ijab,ijab->', dif, dif))
+        print("difference to canonical doubles amplitudes:")
+        print(f"norm: {dif_norm}")
+        print("max difference: ", np.amax(dif))
+
+        tt2_can = self.tt2(b.ooovvv)
+        dif = tt2_np - tt2_can
+        dif_norm = np.sqrt(np.einsum('ijkabc,ijkabc->', dif, dif))
+        print("difference to canonical triples amplitudes:\nnorm: ", dif_norm)
+        print("max difference: ", np.amax(dif))
+
+        tq2_can = self.tq2(b.oooovvvv)
+        dif = tq2_np - tq2_can
+        dif_norm = np.sqrt(np.einsum('ijklabcd,ijklabcd->', dif, dif))
+        print("difference to canonical quadruple amplitudes:\nnorm: ", dif_norm)
+        print("max difference: ", np.amax(dif))
         return OneParticleOperator(self.mospaces).ov.set_from_ndarray(ts2_np, 1e-15)
 
     @cached_member_function
@@ -541,42 +740,126 @@ class LazyMp:
             raise NotImplementedError("T^T_2 term not implemented "
                                       f"for space {space}.")
         hf = self.reference_state
-        # hacking einsum with numpy
+        # hacking direct_sum with numpy
         eia = self.df(b.ov).to_ndarray()
         delta = np.add.outer(eia, eia)
         delta = np.add.outer(delta, eia)  # shape: ovovov
-        delta = np.moveaxis(delta, [0, 1, 2, 3, 4, 5], [0, 3, 1, 4, 2, 5])
-        # symmetrise denominator. Only occ index sufficient?
-        delta = 0.5 * (delta + np.moveaxis(delta, 0, 1))
-        delta = 0.5 * (delta + np.moveaxis(delta, [0, 2], [2, 0]))
-        delta = 0.5 * (delta + np.moveaxis(delta, 1, 2))
-        delta = 0.5 * (delta + np.moveaxis(delta, [0, 1, 2], [2, 0, 1]))
-        delta = 0.5 * (delta + np.moveaxis(delta, [0, 1, 2], [1, 2, 0]))
+        delta = -1.0 * np.moveaxis(delta, [0, 1, 2, 3, 4, 5], [0, 3, 1, 4, 2, 5])
+        # symmetrise denominator?
+        # delta = 1 / 6 * (
+        #     delta + np.moveaxis(delta, 0, 1) + np.moveaxis(delta, 1, 2)
+        #     + np.moveaxis(delta, [0, 2], [2, 0])
+        #     + np.moveaxis(delta, [0, 1, 2], [2, 0, 1])
+        #     + np.moveaxis(delta, [0, 1, 2], [1, 2, 0])
+        # )
+        # delta = 1 / 6 * (
+        #     delta + np.moveaxis(delta, 3, 4) + np.moveaxis(delta, 4, 5)
+        #     + np.moveaxis(delta, [3, 5], [5, 3])
+        #     + np.moveaxis(delta, [3, 4, 5], [5, 3, 4])
+        #     + np.moveaxis(delta, [3, 4, 5], [4, 5, 3])
+        # )
 
-        i1 = -1.0 * np.einsum('kdbc,ijad->ijkabc', hf.ovvv.to_ndarray(),
-                              self.t2(b.oovv).to_ndarray())
+        # did I have a sign error here?? check manu/adrian result again!
+        i1 = + np.einsum('kdbc,ijad->ijkabc', hf.ovvv.to_ndarray(),
+                         self.t2(b.oovv).to_ndarray())
         # symmetrization of i1: (1 - P_ki - P_kj)(1 - P_ab - P_ac)
-        i1 = 0.5 * (i1 - np.moveaxis(i1, 3, 4))  # ab
-        i1 = 0.5 * (i1 - np.moveaxis(i1, [3, 5], [5, 3]))  # ac
-        i1 = 0.5 * (i1 - np.moveaxis(i1, [0, 2], [2, 0]))  # ik
-        i1 = 0.5 * (i1 + np.moveaxis(i1, [0, 2, 3], [2, 0, 4]))  # ik,ab
-        i1 = 0.5 * (i1 + np.moveaxis(i1, [0, 2, 3, 5], [2, 0, 5, 3]))  # ik,ac
-        i1 = 0.5 * (i1 - np.moveaxis(i1, 1, 2))  # jk
-        i1 = 0.5 * (i1 + np.moveaxis(i1, [1, 3], [2, 4]))  # jk,ab
-        i1 = 0.5 * (i1 + np.moveaxis(i1, [1, 3, 5], [2, 5, 3]))  # jk,ac
+        i1 = (
+            i1 - np.moveaxis(i1, 3, 4) - np.moveaxis(i1, [3, 5], [5, 3])
+            - np.moveaxis(i1, [0, 2], [2, 0])
+            + np.moveaxis(i1, [0, 2, 3], [2, 0, 4])
+            + np.moveaxis(i1, [0, 2, 3, 5], [2, 0, 5, 3])
+            - np.moveaxis(i1, 1, 2) + np.moveaxis(i1, [1, 3], [2, 4])
+            + np.moveaxis(i1, [1, 3, 5], [2, 5, 3])
+        )
 
         i2 = + np.einsum('jklc,ilab->ijkabc', hf.ooov.to_ndarray(),
                          self.t2(b.oovv).to_ndarray())
         # symmetrization of i2: (1 - P_ij - P_ik)(1 - P_ca - P_cb)
-        i2 = 0.5 * (i2 - np.moveaxis(i1, [3, 5], [5, 3]))  # ac
-        i2 = 0.5 * (i2 - np.moveaxis(i1, 4, 5))  # bc
-        i2 = 0.5 * (i2 - np.moveaxis(i1, 0, 1))  # ij
-        i2 = 0.5 * (i2 + np.moveaxis(i1, [0, 3, 5], [1, 5, 3]))  # ij,ac
-        i2 = 0.5 * (i2 + np.moveaxis(i1, [0, 4], [1, 5]))  # ij,bc
-        i2 = 0.5 * (i2 - np.moveaxis(i1, [0, 2], [2, 0]))  # ik
-        i2 = 0.5 * (i2 + np.moveaxis(i1, [0, 2, 3, 5], [2, 0, 5, 3]))  # ik,ac
-        i2 = 0.5 * (i2 + np.moveaxis(i1, [0, 2, 4], [2, 0, 5]))  # ik,bc
+        i2 = (
+            i2 - np.moveaxis(i2, [3, 5], [5, 3]) - np.moveaxis(i2, 4, 5)
+            - np.moveaxis(i2, 0, 1) + np.moveaxis(i2, [0, 3, 5], [1, 5, 3])
+            + np.moveaxis(i2, [0, 4], [1, 5]) - np.moveaxis(i2, [0, 2], [2, 0])
+            + np.moveaxis(i2, [0, 2, 3, 5], [2, 0, 5, 3])
+            + np.moveaxis(i2, [0, 2, 4], [2, 0, 5])
+        )
         return (i1 + i2) / delta
+
+    def tq2(self, space):
+        if space != b.oooovvvv:
+            raise NotImplementedError("T^Q_2 term not implemented "
+                                      f"for space {space}.")
+        hf = self.reference_state
+        # build delta i+j+k+l-a-b-c-d
+        # hacking direct_sum with numpy
+        eia = self.df(b.ov).to_ndarray()
+        delta = np.add.outer(eia, eia)
+        delta = np.add.outer(delta, eia)
+        delta = np.add.outer(delta, eia)  # shape: ovovovov
+        delta = -1.0 * np.moveaxis(
+            delta, [0, 1, 2, 3, 4, 5, 6, 7], [0, 4, 1, 5, 2, 6, 3, 7]
+        )
+        # symmetrise the denominator!
+        ret = - np.einsum('ijab,klcd->ijklabcd', hf.oovv.to_ndarray(),
+                          self.t2(b.oovv).to_ndarray())
+        # symmetrization of ret: (36 terms in total)
+        # (1 - P_jk - P_jl - P_ik - P_il + P_ik*P_jl) * (1 - P_bc - P_bd - P_ac
+        # - P_ad + P_ac*P_bd)
+        ret = (
+            ret - np.moveaxis(ret, 5, 6)  # ijklacbd  / P_bc
+            - np.moveaxis(ret, [5, 7], [7, 5])  # ijkladcb  / P_bd
+            - np.moveaxis(ret, [4, 6], [6, 4])  # ijklcbad  / P_ac
+            - np.moveaxis(ret, [4, 7], [7, 4])  # ijkldbca  / P_ad
+            + np.moveaxis(ret, [4, 5, 6, 7], [6, 7, 4, 5])  # ijklcdab / P_acbd
+            - np.moveaxis(ret, 1, 2)  # ikjlabcd  / P_jk
+            + np.moveaxis(ret, [1, 5], [2, 6])  # ikjlacbd / P_jkbc
+            + np.moveaxis(ret, [1, 5, 7], [2, 7, 5])  # ikjladcb / P_jkbd
+            + np.moveaxis(ret, [1, 4, 6], [2, 6, 4])  # ikjlcbad / P_jkac
+            + np.moveaxis(ret, [1, 4, 7], [2, 7, 4])  # ikjldbca / P_jkad
+            - np.moveaxis(
+                ret, [1, 4, 5, 6, 7], [2, 6, 7, 4, 5]  # ikjlcdab /P_jkacbd
+            )
+            - np.moveaxis(ret, [1, 3], [3, 1])  # ilkjabcd / P_jl
+            + np.moveaxis(ret, [1, 3, 5], [3, 1, 6])  # ilkjacbd / P_jlbc
+            + np.moveaxis(ret, [1, 3, 5, 7], [3, 1, 7, 5])  # ilkjadcb /P_jlbd
+            + np.moveaxis(ret, [1, 3, 4, 6], [3, 1, 6, 4])  # ilkjcbad / P_jlac
+            + np.moveaxis(ret, [1, 3, 4, 7], [3, 1, 7, 4])  # ilkjdbca / P_jlad
+            - np.moveaxis(  # ilkjcdab / P_jlacbd
+                ret, [1, 3, 4, 5, 6, 7], [3, 1, 6, 7, 4, 5]
+            )
+            - np.moveaxis(ret, [0, 2], [2, 0])  # kjilabcd /P_ik
+            + np.moveaxis(ret, [0, 2, 5], [2, 0, 6])  # kjilacbd / P_ikbc
+            + np.moveaxis(ret, [0, 2, 5, 7], [2, 0, 7, 5])  # kjiladcb / P_ikbd
+            + np.moveaxis(ret, [0, 2, 4, 6], [2, 0, 6, 4])  # kjilcbad / P_ikac
+            + np.moveaxis(ret, [0, 2, 4, 7], [2, 0, 7, 4])  # kjildbca / P_ikad
+            - np.moveaxis(  # kjilcdab /P_ikacbd
+                ret, [0, 2, 4, 5, 6, 7], [2, 0, 6, 7, 4, 5]
+            )
+            - np.moveaxis(ret, [0, 3], [3, 0])  # ljkiabcd / P_il
+            + np.moveaxis(ret, [0, 3, 5], [3, 0, 6])  # ljkiacbd / P_ilbc
+            + np.moveaxis(ret, [0, 3, 5, 7], [3, 0, 7, 5])  # ljkiadcb / P_ilbd
+            + np.moveaxis(ret, [0, 3, 4, 6], [3, 0, 6, 4])  # ljkicbad / P_ilac
+            + np.moveaxis(ret, [0, 3, 4, 7], [3, 0, 7, 4])  # ljkidbca / P_ilad
+            - np.moveaxis(  # ljkicdab / P_ilacbd
+                ret, [0, 3, 4, 5, 6, 7], [3, 0, 6, 7, 4, 5]
+            )
+            + np.moveaxis(ret, [0, 1, 2, 3], [2, 3, 0, 1])  # klijabcd / P_ikjl
+            - np.moveaxis(  # klijacbd / P_ikjlbc
+                ret, [0, 1, 2, 3, 5], [2, 3, 0, 1, 6]
+            )
+            - np.moveaxis(  # klijadcb / P_ikjlbd
+                ret, [0, 1, 2, 3, 5, 7], [2, 3, 0, 1, 7, 5]
+            )
+            - np.moveaxis(  # klijcbad / P_ikjlac
+                ret, [0, 1, 2, 3, 4, 6], [2, 3, 0, 1, 6, 4]
+            )
+            - np.moveaxis(  # klijdbca / P_ikjlad
+                ret, [0, 1, 2, 3, 4, 7], [2, 3, 0, 1, 7, 4]
+            )
+            + np.moveaxis(  # klijcdab / P_ikjlacbd
+                ret, [0, 1, 2, 3, 4, 5, 6, 7], [2, 3, 0, 1, 6, 7, 4, 5]
+            )
+        )
+        return ret / delta
 
     @cached_property
     @timed_member_call(timer="timer")
@@ -588,15 +871,15 @@ class LazyMp:
         ret = OneParticleOperator(self.mospaces, is_symmetric=True)
         # NOTE: the following 3 blocks are equivalent to the cvs_p0 intermediates
         # defined at the end of this file
-        td = self.t2_hyl('o1o1v1v1')
-        # ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
-        ret.oo = -0.5 * einsum("ikab,jkab->ij", td, td)
+        # td = self.t2_hyl('o1o1v1v1')
+        ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
+        # ret.oo = -0.5 * einsum("ikab,jkab->ij", td, td)
         ret.ov = -0.5 * (
             + einsum("ijbc,jabc->ia", self.t2oo, hf.ovvv)
             + einsum("jkib,jkab->ia", hf.ooov, self.t2oo)
         ) / self.df(b.ov)
-        # ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
-        ret.vv = 0.5 * einsum("ijac,ijbc->ab", td, td)
+        ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
+        # ret.vv = 0.5 * einsum("ijac,ijbc->ab", td, td)
 
         if self.has_core_occupied_space:
             # additional terms to "revert" CVS for ground state density
@@ -802,49 +1085,49 @@ def cvs_p0(hf, mp, intermediates):
     return ret
 
 
-def triple_symmetry_guess(o, v):
-    n = 0.0
-    ret = np.zeros((o, o, o, v, v, v))
-    for i in range(o):
-        for j in range(i + 1, o):
-            for k in range(j + 1, o):
-                for a in range(v):
-                    for b in range(a + 1, v):
-                        for c in range(b + 1, v):
-                            ret[i, j, k, a, b, c] = +n  # 1
-                            ret[i, j, k, a, c, b] = -n
-                            ret[i, j, k, b, a, c] = -n
-                            ret[i, j, k, b, c, a] = +n
-                            ret[i, j, k, c, b, a] = -n
-                            ret[i, j, k, c, a, b] = +n
-                            ret[i, k, j, a, b, c] = -n  # 2
-                            ret[i, k, j, a, c, b] = +n
-                            ret[i, k, j, b, a, c] = +n
-                            ret[i, k, j, b, c, a] = -n
-                            ret[i, k, j, c, b, a] = +n
-                            ret[i, k, j, c, a, b] = -n
-                            ret[j, i, k, a, b, c] = -n  # 3
-                            ret[j, i, k, a, c, b] = +n
-                            ret[j, i, k, b, a, c] = +n
-                            ret[j, i, k, b, c, a] = -n
-                            ret[j, i, k, c, b, a] = +n
-                            ret[j, i, k, c, a, b] = -n
-                            ret[j, k, i, a, b, c] = +n  # 4
-                            ret[j, k, i, a, c, b] = -n
-                            ret[j, k, i, b, a, c] = -n
-                            ret[j, k, i, b, c, a] = +n
-                            ret[j, k, i, c, b, a] = -n
-                            ret[j, k, i, c, a, b] = +n
-                            ret[k, j, i, a, b, c] = -n  # 5
-                            ret[k, j, i, a, c, b] = +n
-                            ret[k, j, i, b, a, c] = +n
-                            ret[k, j, i, b, c, a] = -n
-                            ret[k, j, i, c, b, a] = +n
-                            ret[k, j, i, c, a, b] = -n
-                            ret[k, i, j, a, b, c] = +n  # 6
-                            ret[k, i, j, a, c, b] = -n
-                            ret[k, i, j, b, a, c] = -n
-                            ret[k, i, j, b, c, a] = +n
-                            ret[k, i, j, c, b, a] = -n
-                            ret[k, i, j, c, a, b] = +n
-    return ret
+# def triple_symmetry_guess(o, v):
+#     n = 0.0
+#     ret = np.zeros((o, o, o, v, v, v))
+#     for i in range(o):
+#         for j in range(i + 1, o):
+#             for k in range(j + 1, o):
+#                 for a in range(v):
+#                     for b in range(a + 1, v):
+#                         for c in range(b + 1, v):
+#                             ret[i, j, k, a, b, c] = +n  # 1
+#                             ret[i, j, k, a, c, b] = -n
+#                             ret[i, j, k, b, a, c] = -n
+#                             ret[i, j, k, b, c, a] = +n
+#                             ret[i, j, k, c, b, a] = -n
+#                             ret[i, j, k, c, a, b] = +n
+#                             ret[i, k, j, a, b, c] = -n  # 2
+#                             ret[i, k, j, a, c, b] = +n
+#                             ret[i, k, j, b, a, c] = +n
+#                             ret[i, k, j, b, c, a] = -n
+#                             ret[i, k, j, c, b, a] = +n
+#                             ret[i, k, j, c, a, b] = -n
+#                             ret[j, i, k, a, b, c] = -n  # 3
+#                             ret[j, i, k, a, c, b] = +n
+#                             ret[j, i, k, b, a, c] = +n
+#                             ret[j, i, k, b, c, a] = -n
+#                             ret[j, i, k, c, b, a] = +n
+#                             ret[j, i, k, c, a, b] = -n
+#                             ret[j, k, i, a, b, c] = +n  # 4
+#                             ret[j, k, i, a, c, b] = -n
+#                             ret[j, k, i, b, a, c] = -n
+#                             ret[j, k, i, b, c, a] = +n
+#                             ret[j, k, i, c, b, a] = -n
+#                             ret[j, k, i, c, a, b] = +n
+#                             ret[k, j, i, a, b, c] = -n  # 5
+#                             ret[k, j, i, a, c, b] = +n
+#                             ret[k, j, i, b, a, c] = +n
+#                             ret[k, j, i, b, c, a] = -n
+#                             ret[k, j, i, c, b, a] = +n
+#                             ret[k, j, i, c, a, b] = -n
+#                             ret[k, i, j, a, b, c] = +n  # 6
+#                             ret[k, i, j, a, c, b] = -n
+#                             ret[k, i, j, b, a, c] = -n
+#                             ret[k, i, j, b, c, a] = +n
+#                             ret[k, i, j, c, b, a] = -n
+#                             ret[k, i, j, c, a, b] = +n
+#     return ret
