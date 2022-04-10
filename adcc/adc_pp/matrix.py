@@ -268,7 +268,7 @@ def block_cvs_pphh_ph_1(hf, mp, intermediates):
 #
 # 2nd order main
 #
-def block_ph_ph_2_old(hf, mp, intermediates):
+def block_ph_ph_2(hf, mp, intermediates):
     i1 = intermediates.adc2_i1
     i2 = intermediates.adc2_i2
     diagonal = AmplitudeVector(ph=(
@@ -293,7 +293,7 @@ def block_ph_ph_2_old(hf, mp, intermediates):
     return AdcBlock(apply, diagonal)
 
 
-def block_ph_ph_2(hf, mp, intermediates):
+def gen_block_ph_ph_2(hf, mp, intermediates):
     # MP second order singles amplitudes are missing. For the moment fine,
     # because they are contracted with off diagonal Fock blocks.
     # missing in i0, i1, i2
@@ -307,7 +307,7 @@ def block_ph_ph_2(hf, mp, intermediates):
         + einsum('ab,ab->', mp.mp2_diffdm.vv, hf.fvv)
         # - 0.25 * sum_klcd t_klcd * <kl||cd>
         - 0.25 * einsum('klcd,klcd', td, hf.oovv)
-    )
+    ).evaluate()
     # assert i0 < 1e-15, "Const intermediate is not approx. equal 0"
 
     i1 = (
@@ -323,7 +323,7 @@ def block_ph_ph_2(hf, mp, intermediates):
         #             + 0.5 * t_kjcd * t_licd * f_lk)
         - einsum('jk,ki->ij', mp.mp2_diffdm.oo, hf.foo).symmetrise((0, 1))
         + 0.5 * einsum('kjcd,licd,lk->ij', td, td, hf.foo)
-    )
+    ).evaluate()
     # assert_allclose(
     #     i1.to_ndarray(), (-intermediates.adc2_i2).to_ndarray(),
     #     atol=1e-15
@@ -342,7 +342,7 @@ def block_ph_ph_2(hf, mp, intermediates):
         #           - 0.5 * t_klcb * t_klda * f_cd)
         - einsum('bc,ac->ab', mp.mp2_diffdm.vv, hf.fvv).symmetrise((0, 1))
         - 0.5 * einsum('klcb,klda,cd->ab', td, td, hf.fvv)
-    )
+    ).evaluate()
     # assert_allclose(
     #     i2.to_ndarray(), intermediates.adc2_i1.to_ndarray(),
     #     atol=1e-15
@@ -365,7 +365,7 @@ def block_ph_ph_2(hf, mp, intermediates):
         # - sum_kc (t_kjcb * <ki||ca> + t_kica * <kj||cb>)
         - einsum('kjcb,kica->iajb', td, hf.oovv)
         - einsum('kica,kjcb->iajb', td, hf.oovv)
-    )
+    ).evaluate()
 
     # term_t2_eri = - 0.5 * (
     #     + einsum("kjcb,kica->iajb", mp.t2oo, hf.oovv)
