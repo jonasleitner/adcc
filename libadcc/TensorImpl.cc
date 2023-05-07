@@ -165,6 +165,39 @@ std::pair<lt::expr::label<M>, lt::expr::label<M>> parse_permutation(
   return {lt::expr::label<M>(set1), lt::expr::label<M>(set2)};
 }
 
+template <size_t N>
+std::array<lt::expr::label<1>, 3> parse_triple_permutation(
+      const std::vector<AxisInfo>& axes, const lt::expr::label<N>& label,
+      const std::vector<std::vector<size_t>>& permutations) {
+
+    std::cout << "Parsing Triples Symmetry" << std::endl;
+
+  if (permutations.size() != 1) {
+    throw invalid_argument(
+          "A triples permutation can only contain 1 permutation, e.g., '0, 1, 2'.");
+  }
+  auto& perm = permutations[0];
+
+  if (perm.size() != 3) {
+    throw invalid_argument("A triples permutation need to have 3 indices.");
+  }
+
+  if (perm[0] >= N || perm[1] >= N || perm[2] >= N) {
+    throw invalid_argument(
+          "Index in permutation list cannot be larger than dimension.");
+  }
+  if (axes[perm[0]] != axes[perm[1]] || axes[perm[0]] != axes[perm[2]]) {
+    throw invalid_argument(
+          "(Anti)-Symmetrisation can only be performed over equivalent axes (not '" +
+          axes[perm[0]].label + ", " + axes[perm[1]].label + " and " +
+          axes[perm[2]].label + "').");
+  }
+
+  return {lt::expr::label<1>(label.letter_at(perm[0])),
+          lt::expr::label<1>(label.letter_at(perm[1])),
+          lt::expr::label<1>(label.letter_at(perm[2]))};
+}
+
 template <size_t N, typename T>
 std::pair<lt::index<N>, lt::index<N>> assert_convert_tensor_index(
       lt::btensor<N, T>& tensor, const std::vector<size_t>& idx) {
@@ -1112,8 +1145,17 @@ std::shared_ptr<Tensor> TensorImpl<N>::symmetrise(
   // Execute the operation
   auto symmetrised = [&permutations, &lthis, this, label]() {
     if (permutations.size() == 1) {
-      auto parsed = parse_permutation<1>(m_axes, strip_safe<N>(label), permutations);
-      return 0.5 * lt::expr::symm(parsed.first, parsed.second, lthis);
+      if (permutations[0].size() == 3) {
+        // Triples Symmetry!
+        // Only makes sense to provide triples sym as single perm, e.g., call
+        // Tensor.symmetrise(0, 1, 2)
+        auto parsed = parse_triple_permutation(m_axes, strip_safe<N>(label),
+                                               permutations);
+        return 1. / 6. * lt::expr::symm(parsed[0], parsed[1], parsed[2], lthis);
+      } else {
+        auto parsed = parse_permutation<1>(m_axes, strip_safe<N>(label), permutations);
+        return 0.5 * lt::expr::symm(parsed.first, parsed.second, lthis);
+      }
     } else if (permutations.size() == 2) {
       auto parsed = parse_permutation<2>(m_axes, strip_safe<N>(label), permutations);
       return 0.5 * lt::expr::symm(parsed.first, parsed.second, lthis);
@@ -1148,8 +1190,15 @@ std::shared_ptr<Tensor> TensorImpl<N>::antisymmetrise(
   auto antisymmetrised = [&permutations, &lthis, this, &label]() {
     if (permutations.size() == 1) {
 
-      auto parsed = parse_permutation<1>(m_axes, strip_safe<N>(label), permutations);
-      return 0.5 * lt::expr::asymm(parsed.first, parsed.second, lthis);
+      if (permutations[0].size() == 3) {
+        // Triples Antisymmetry
+        auto parsed = parse_triple_permutation(m_axes, strip_safe<N>(label),
+                                               permutations);
+        return 1. / 6. * lt::expr::asymm(parsed[0], parsed[1], parsed[2], lthis);
+      } else {
+        auto parsed = parse_permutation<1>(m_axes, strip_safe<N>(label), permutations);
+        return 0.5 * lt::expr::asymm(parsed.first, parsed.second, lthis);
+      }
     } else if (permutations.size() == 2) {
       auto parsed = parse_permutation<2>(m_axes, strip_safe<N>(label), permutations);
       return 0.5 * lt::expr::asymm(parsed.first, parsed.second, lthis);

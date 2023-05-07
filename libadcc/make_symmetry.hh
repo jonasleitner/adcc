@@ -20,6 +20,8 @@
 #pragma once
 #include "Symmetry.hh"
 
+// Jonas: implement symmetry for triples
+
 namespace libadcc {
 /**
  *  \addtogroup Tensor
