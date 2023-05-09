@@ -47,7 +47,7 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
             n_guesses_doubles=None, output=sys.stdout, core_orbitals=None,
             frozen_core=None, frozen_virtual=None, method=None,
             n_singlets=None, n_triplets=None, n_spin_flip=None,
-            environment=None, **solverargs):
+            environment=None, property_maxorder=None, **solverargs):
     """Run an ADC calculation.
 
     Main entry point to run an ADC calculation. The reference to build the ADC
@@ -133,6 +133,12 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
         The keywords to specify how coupling to an environment model,
         e.g. PE, is treated. For details see :ref:`environment`.
 
+    property_maxorder : int, optional
+        Specifiy the order through which the ADC property calculation is expanded.
+        If none is given, the same as for the energy calculation is used.
+        Note that for ADC(3) the default is to compute properties correct through
+        2nd order.
+
     Other parameters
     ----------------
     max_subspace : int, optional
@@ -180,6 +186,12 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
         data_or_matrix, core_orbitals=core_orbitals, frozen_core=frozen_core,
         frozen_virtual=frozen_virtual, method=method)
 
+    # property method and method need to span the same excitation space
+    if matrix.method.level // 2 != property_maxorder // 2:
+        raise InputError(f"{method} and {property_maxorder} are not a valid "
+                         "combination of method and property_maxorder.")
+    property_method = matrix.method.at_level(property_maxorder)
+
     n_states, kind = validate_state_parameters(
         matrix.reference_state, n_states=n_states, n_singlets=n_singlets,
         n_triplets=n_triplets, n_spin_flip=n_spin_flip, kind=kind)
@@ -206,7 +218,7 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
         matrix, n_states, kind, guesses=guesses, n_guesses=n_guesses,
         n_guesses_doubles=n_guesses_doubles, conv_tol=conv_tol, output=output,
         eigensolver=eigensolver, **solverargs)
-    exstates = ExcitedStates(diagres)
+    exstates = ExcitedStates(diagres, property_method=property_method)
     exstates.kind = kind
     exstates.spin_change = spin_change
 

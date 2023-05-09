@@ -101,11 +101,17 @@ def tdm_adc2(mp, amplitude, intermediates):
     return dm
 
 
+def tdm_adc3(mp, amplitude, intermediates):
+    print("WARNING: using ADC(2) transition density matrix!")
+    return tdm_adc2(mp, amplitude, intermediates)
+
+
 DISPATCH = {
     "adc0": tdm_adc0,
     "adc1": tdm_adc1,
     "adc2": tdm_adc2,
     "adc2x": tdm_adc2,
+    "adc3": tdm_adc3,
     "cvs-adc0": tdm_adc0,
     "cvs-adc1": tdm_adc0,  # No extra contribs for CVS-ADC(1)
     "cvs-adc2": tdm_cvs_adc2,

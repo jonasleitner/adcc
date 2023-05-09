@@ -101,11 +101,17 @@ def s2s_tdm_adc2(mp, amplitude_l, amplitude_r, intermediates):
     return dm
 
 
+def s2s_tdm_adc3(mp, amplitude_l, amplitude_r, intermediates):
+    print("WARNING: using ADC(2) state to state transition DM!")
+    return s2s_tdm_adc2(mp, amplitude_l, amplitude_r, intermediates)
+
+
 # Ref: https://doi.org/10.1080/00268976.2013.859313
 DISPATCH = {"adc0": s2s_tdm_adc0,
             "adc1": s2s_tdm_adc0,       # same as ADC(0)
             "adc2": s2s_tdm_adc2,
             "adc2x": s2s_tdm_adc2,      # same as ADC(2)
+            "adc3": s2s_tdm_adc3,
             }
 
 
