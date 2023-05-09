@@ -155,7 +155,7 @@ Aber brauchen wir das überhaupt? 4 idx tensoren: eri, t-amplituden
 eri haben bra ket symmetry... aber nur für diagonale blöcke relevant, wo es erkannt wird
 t-amplituden haben haben nur a/b und c/d symmetrie
 
-6 idx tensoren... eigentlich nur t amplituden -> 012 und 345 haben symmetrie
+6 idx tensoren... eigentlich nur amplituden -> 012 und 345 haben symmetrie
 -> implementierung über triple sollte funktionieren
 */
 

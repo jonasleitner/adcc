@@ -170,8 +170,6 @@ std::array<lt::expr::label<1>, 3> parse_triple_permutation(
       const std::vector<AxisInfo>& axes, const lt::expr::label<N>& label,
       const std::vector<std::vector<size_t>>& permutations) {
 
-    std::cout << "Parsing Triples Symmetry" << std::endl;
-
   if (permutations.size() != 1) {
     throw invalid_argument(
           "A triples permutation can only contain 1 permutation, e.g., '0, 1, 2'.");
@@ -1140,8 +1138,6 @@ std::shared_ptr<Tensor> TensorImpl<N>::symmetrise(
   std::shared_ptr<ExpressionTree> expr_this = expression_ptr();
   auto lthis                                = expr_this->attach_letters<N>(label);
 
-  // Jonas: Implement symm(i, j, k, ...)
-
   // Execute the operation
   auto symmetrised = [&permutations, &lthis, this, label]() {
     if (permutations.size() == 1) {
@@ -1183,8 +1179,6 @@ std::shared_ptr<Tensor> TensorImpl<N>::antisymmetrise(
   auto label                                = make_label(N);
   std::shared_ptr<ExpressionTree> expr_this = expression_ptr();
   auto lthis                                = expr_this->attach_letters<N>(label);
-
-  // Jonas: Implement asymm(i, j, k, ...)
 
   // Execute the operation
   auto antisymmetrised = [&permutations, &lthis, this, &label]() {

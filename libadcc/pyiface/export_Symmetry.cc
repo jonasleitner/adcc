@@ -148,6 +148,13 @@ void export_Symmetry(py::module& m) {
         "symmetric        Is the tensor symmetric (only in effect if both space\n"
         "                 axes identical). false disables a setup of permutational\n"
         "                 symmetry.\n");
+
+  m.def("make_symmetry_triples", &make_symmetry_triples,
+        "Return the Symmetry object like it would be set up for a\n"
+        "MP or ADC triples amplitude.\n"
+        "\n"
+        "  mospaces     MoSpaces object\n"
+        "  space        Space string (e.g. o1o1o1v1v1v1)\n");
 }
 
 }  // namespace libadcc
