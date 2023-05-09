@@ -94,6 +94,45 @@ class LazyMp:
         ) / denom
 
     @cached_member_function
+    def tt2(self, space: str):
+        """Return the MP2 triples amplitude."""
+        if space != b.ooovvv:
+            raise NotImplementedError("MP2 triples amplitudes not implemented"
+                                      f"for space {space}.")
+        hf = self.reference_state
+
+        denom = - direct_sum('ia,jkbc->ijkabc', self.df(b.ov),
+                             direct_sum('jb,kc->jkbc', self.df(b.ov),
+                                        self.df(b.ov)))
+        denom = denom.symmetrise(0, 1, 2).symmetrise(3, 4, 5)
+
+        t = 9 * (  # 36 / 4, because we have 9 terms each
+            + 1.0 * einsum('kdbc,ijad->ijkabc', hf.ovvv, self.t2oo)
+            + 1.0 * einsum('jklc,ilab->ijkabc', hf.ooov, self.t2oo)
+        ).antisymmetrise(0, 1, 2).antisymmetrise(3, 4, 5)
+        return t / denom
+
+    @cached_member_function
+    def ts3(self, space: str):
+        """Return the MP3 singles amplitude."""
+        if space != b.ov:
+            raise NotImplementedError("MP3 singles amplitude not implemented "
+                                      f"for space {space}.")
+        hf = self.reference_state
+        ts2 = self.mp2_diffdm.ov
+        td2 = self.td2(b.oovv)
+        tt2 = self.tt2(b.ooovvv)
+
+        denom = - self.df(b.ov)
+        t = (
+            + 0.5 * einsum('jabc,ijbc->ia', hf.ovvv, td2)
+            + 0.5 * einsum('jkib,jkab->ia', hf.ooov, td2)
+            - 1.0 * einsum('jaib,jb->ia', hf.ovov, ts2)
+            + 0.25 * einsum('jkbc,ijkabc->ia', hf.oovv, tt2)
+        )
+        return t / denom
+
+    @cached_member_function
     def t2eri(self, space, contraction):
         """
         Return the T2 tensor with ERI tensor contraction intermediates.
@@ -122,7 +161,7 @@ class LazyMp:
     @timed_member_call(timer="timer")
     def mp2_diffdm(self):
         """
-        Return the MP2 differensce density in the MO basis.
+        Return the MP2 difference density in the MO basis.
         """
         hf = self.reference_state
         ret = OneParticleOperator(self.mospaces, is_symmetric=True)
@@ -169,6 +208,53 @@ class LazyMp:
         ret.reference_state = self.reference_state
         return evaluate(ret)
 
+    @cached_property
+    @timed_member_call(timer="timer")
+    def mp3_diffdm(self):
+        """Return the MP3 difference density in the MO basis, i.e, the
+           2nd and 3rd order contribution to the MP density matrx."""
+        if self.has_core_occupied_space:
+            raise NotImplementedError("MP3 difference density not implemented "
+                                      "for CVS.")
+
+        ret = OneParticleOperator(self.mospaces, is_symmetric=True)
+        mp2_dm = self.mp2_diffdm
+        ts2 = mp2_dm.ov
+        td2 = self.td2(b.oovv)
+        tt2 = self.tt2(b.ooovvv)
+        ts3 = self.ts3(b.ov)
+
+        # NOTE: it is possible to compute the MP3 density without
+        #       explicitly computing the MP2 triples, i.e., with
+        #       N^4 memory scaling.
+        #       However, the MP3 density is only needed for ISR3
+        #       currently, where we need the triples anyway.
+        #       So I think for now just use the triples... should be
+        #       computational more efficient.
+
+        ret.oo = (
+            # 2nd order
+            mp2_dm.oo
+            # 3rd order
+            - 1.0 * einsum('ikab,jkab->ij', self.t2oo, td2).symmetrise()
+        )
+        ret.ov = (
+            # 2nd order
+            mp2_dm.ov
+            # 3rd order
+            - 1.0 * einsum('ijab,jb->ia', self.t2oo, ts2)
+            - 0.25 * einsum('jkbc,ijkabc->ia', self.t2oo, tt2)
+            + ts3
+        )
+        ret.vv = (
+            # 2nd order
+            mp2_dm.vv
+            # 3rd order
+            + 1.0 * einsum('ijac,ijbc->ab', self.t2oo, td2).symmetrise()
+        )
+        ret.reference_state = self.reference_state
+        return evaluate(ret)
+
     def density(self, level=2):
         """
         Return the MP density in the MO basis with all corrections
@@ -178,8 +264,10 @@ class LazyMp:
             return self.reference_state.density
         elif level == 2:
             return self.reference_state.density + self.mp2_diffdm
+        elif level == 3:
+            return self.reference_state.density + self.mp3_diffdm
         else:
-            raise NotImplementedError("Only densities for level 1 and 2"
+            raise NotImplementedError("Only densities for level 1, 2 and 3"
                                       " are implemented.")
 
     def dipole_moment(self, level=2):
@@ -191,8 +279,10 @@ class LazyMp:
             return self.reference_state.dipole_moment
         elif level == 2:
             return self.mp2_dipole_moment
+        elif level == 3:
+            return self.mp3_dipole_moment
         else:
-            raise NotImplementedError("Only dipole moments for level 1 and 2"
+            raise NotImplementedError("Only dipole moments for level 1, 2 and 3"
                                       " are implemented.")
 
     @cached_member_function
@@ -266,6 +356,10 @@ class LazyMp:
     def mp2_density(self):
         return self.density(2)
 
+    @property
+    def mp3_density(self):
+        return self.density(3)
+
     @cached_property
     def mp2_dipole_moment(self):
         refstate = self.reference_state
@@ -273,6 +367,14 @@ class LazyMp:
         mp2corr = -np.array([product_trace(comp, self.mp2_diffdm)
                              for comp in dipole_integrals])
         return refstate.dipole_moment + mp2corr
+
+    @cached_property
+    def mp3_dipole_moment(self):
+        refstate = self.reference_state
+        dipole_integrals = refstate.operators.electric_dipole
+        mp3corr = -np.array([product_trace(comp, self.mp3_diffdm)
+                             for comp in dipole_integrals])
+        return refstate.dipole_moment + mp3corr
 
 
 #
