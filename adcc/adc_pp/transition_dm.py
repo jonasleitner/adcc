@@ -102,8 +102,74 @@ def tdm_adc2(mp, amplitude, intermediates):
 
 
 def tdm_adc3(mp, amplitude, intermediates):
-    print("WARNING: using ADC(2) transition density matrix!")
-    return tdm_adc2(mp, amplitude, intermediates)
+    dm = OneParticleOperator(mp, is_symmetric=False)
+
+    ul1, ul2 = amplitude.ph, amplitude.pphh
+
+    t2_1 = mp.t2(b.oovv)
+    t2_2 = mp.td2(b.oovv)
+    t3_2 = mp.tt2(b.ooovvv)
+    t2_3 = mp.td3(b.oovv)
+
+    p0 = mp.mp3_diffdm  # 2nd + 3rd order MP density contribution
+    p0_oo, p0_ov, p0_vv = p0.oo, p0.ov, p0.vv
+    p0_2 = mp.mp2_diffdm  # 2nd order MP density contribution
+    p0_2_oo, p0_2_ov, p0_2_vv = p0_2.oo, p0_2.ov, p0_2.vv
+
+    # The scaling in the comments is given as: [comp_scaling] / [mem_scaling]
+    dm.oo = (
+        - 1 * einsum('ja,ia->ij', ul1, p0_ov)  # N^3: O^2V^1 / N^2: O^1V^1
+        - 1 * einsum('jkab,ikab->ij', ul2, t2_1)  # N^5: O^3V^2 / N^4: O^2V^2
+        - 1 * einsum('jkab,ikab->ij', ul2, t2_2)  # N^5: O^3V^2 / N^4: O^2V^2
+        + 0.5 * einsum('jkbc,ikbc->ij', t2_1,  # N^6: O^3V^3 / N^6: O^3V^3
+                       einsum('la,iklabc->ikbc', ul1, t3_2))
+        - 1 * einsum('jb,ib->ij', p0_2_ov,
+                     einsum('ka,ikab->ib', ul1, t2_1))  # N^4: O^2V^2 / N^4: O^2V^2
+    )
+    dm.ov = (
+        - 1 * einsum('jb,ijab->ia', ul1, t2_1)  # N^4: O^2V^2 / N^4: O^2V^2
+        - 1 * einsum('jb,ijab->ia', ul1, t2_2)  # N^4: O^2V^2 / N^4: O^2V^2
+        - 1 * einsum('jb,ijab->ia', ul1, t2_3)  # N^4: O^2V^2 / N^4: O^2V^2
+        - 0.5 * einsum('jkbc,ijkabc->ia', ul2, t3_2)  # N^6: O^3V^3 / N^6: O^3V^3
+        + 1 * einsum('ik,ka->ia', p0_2_oo,
+                     einsum('jb,jkab->ka', ul1, t2_1))  # N^4: O^2V^2 / N^4: O^2V^2
+        + 0.5 * einsum('ijac,jc->ia', t2_1,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('jb,bc->jc', ul1, p0_2_vv))
+        - 1 * einsum('ac,ic->ia', p0_2_vv,
+                     einsum('jb,ijbc->ic', ul1, t2_1))  # N^4: O^2V^2 / N^4: O^2V^2
+        - 0.5 * einsum('ikab,kb->ia', t2_1,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('jb,jk->kb', ul1, p0_2_oo))
+        + 1 * einsum('jlad,ijld->ia', t2_1,  # N^6: O^4V^2 / N^4: O^2V^2
+                     einsum('klcd,ijkc->ijld', t2_1,
+                            einsum('jb,ikbc->ijkc', ul1, t2_1)))
+        + 0.5 * einsum('ilac,lc->ia', t2_1,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('klcd,kd->lc', t2_1,
+                              einsum('jb,jkbd->kd', ul1, t2_1)))
+        - 0.25 * einsum('jkla,ijkl->ia',  # N^6: O^4V^2 / N^4: O^2V^2
+                        einsum('jb,klab->jkla', ul1, t2_1),
+                        einsum('ijcd,klcd->ijkl', t2_1, t2_1))
+    )
+    dm.vo = (
+        + 0.5 * einsum('ja,ij->ai', ul1, p0_oo)  # N^3: O^2V^1 / N^2: O^1V^1
+        - 0.5 * einsum('ib,ab->ai', ul1, p0_vv)  # N^3: O^1V^2 / N^2: V^2
+        - 0.5 * einsum('ikab,kb->ai', t2_1,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('jc,jkbc->kb', ul1, t2_1))
+        - 0.5 * einsum('ikab,kb->ai', t2_1,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('jc,jkbc->kb', ul1, t2_2))
+        - 0.5 * einsum('ikab,kb->ai', t2_2,  # N^4: O^2V^2 / N^4: O^2V^2
+                       einsum('jc,jkbc->kb', ul1, t2_1))
+        + 1 * einsum('ia->ai', ul1)  # N^2: O^1V^1 / N^2: O^1V^1
+    )
+    dm.vv = (
+        + 1 * einsum('ia,ib->ab', ul1, p0_ov)  # N^3: O^1V^2 / N^2: V^2
+        + 1 * einsum('ijac,ijbc->ab', ul2, t2_1)  # N^5: O^2V^3 / N^4: O^2V^2
+        + 1 * einsum('ijac,ijbc->ab', ul2, t2_2)  # N^5: O^2V^3 / N^4: O^2V^2
+        + 1 * einsum('ja,jb->ab', p0_2_ov,
+                     einsum('ic,ijbc->jb', ul1, t2_1))  # N^4: O^2V^2 / N^4: O^2V^2
+        + 0.5 * einsum('jkad,jkbd->ab', t2_1,  # N^6: O^3V^3 / N^6: O^3V^3
+                       einsum('ic,ijkbcd->jkbd', ul1, t3_2))
+    )
+    return dm
 
 
 DISPATCH = {
