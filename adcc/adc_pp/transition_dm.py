@@ -101,7 +101,8 @@ def tdm_adc2(mp, amplitude, intermediates):
     return dm
 
 
-def tdm_adc3(mp, amplitude, intermediates):
+def tdm_adc3(mp: LazyMp, amplitude: AmplitudeVector,
+             intermediates: Intermediates) -> OneParticleOperator:
     dm = OneParticleOperator(mp, is_symmetric=False)
 
     ul1, ul2 = amplitude.ph, amplitude.pphh
@@ -115,6 +116,13 @@ def tdm_adc3(mp, amplitude, intermediates):
     p0_oo, p0_ov, p0_vv = p0.oo, p0.ov, p0.vv
     p0_2 = mp.mp2_diffdm  # 2nd order MP density contribution
     p0_2_oo, p0_2_ov, p0_2_vv = p0_2.oo, p0_2.ov, p0_2.vv
+
+    # NOTE: In the equations below t4_2 amplitudes have been expanded as:
+    # (1 - P_ac - P_ad - P_bc - P_bd + P_ac P_bd) (1 - P_jk - P_jl) t_ij^ab t_kl^cd
+    #       , which is just a different way to write the definition.
+    #       Only MP densities have been factored as intermediates.
+    #       One can probably further simplify the equations further by factoring
+    #       ru1 and similar intermediates.
 
     # The scaling in the comments is given as: [comp_scaling] / [mem_scaling]
     dm.oo = (

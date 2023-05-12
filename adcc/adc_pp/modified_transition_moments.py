@@ -81,16 +81,10 @@ def mtm_cvs_adc2(mp, op, intermediates):
     return ampl + AmplitudeVector(ph=f1, pphh=f2)
 
 
-def mtm_adc3(mp, op, intermediates):
-    print("WARNING: Using ADC(2) modified transition moments!")
-    return mtm_adc2(mp, op, intermediates)
-
-
 DISPATCH = {
     "adc0": mtm_adc0,
     "adc1": mtm_adc1,
     "adc2": mtm_adc2,
-    "adc3": mtm_adc3,
     "cvs-adc0": mtm_cvs_adc0,
     "cvs-adc1": mtm_cvs_adc0,  # Identical to CVS-ADC(0)
     "cvs-adc2": mtm_cvs_adc2,

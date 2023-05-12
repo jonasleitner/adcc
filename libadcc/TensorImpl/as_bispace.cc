@@ -142,25 +142,10 @@ lt::bispace<4> make_sym_bispace_aux(std::vector<IdedBispace<1>> spaces1d) {
   return bispace_product(pair01, pair23);
 }
 
-// Jonas: implement bispace<5> and 6
-// wie ist das denn mit der symmetrie?
-/*
-a, b, c, d
-a * b -> p1
-c * d -> p2
-wird nach a/b und c/d symmetrie geschaut
-p1 * p2 -> es wird nach a*b und c*d symmetry geschaut
-würde a/c symmetrie entdeckt werden?... vermutl nicht.
-Aber brauchen wir das überhaupt? 4 idx tensoren: eri, t-amplituden
-eri haben bra ket symmetry... aber nur für diagonale blöcke relevant, wo es erkannt wird
-t-amplituden haben haben nur a/b und c/d symmetrie
-
-6 idx tensoren... eigentlich nur amplituden -> 012 und 345 haben symmetrie
--> implementierung über triple sollte funktionieren
-*/
-
 template <>
 lt::bispace<6> make_sym_bispace_aux(std::vector<IdedBispace<1>> spaces1d) {
+    // NOTE: the implementation has only been tested for 6 dimentional
+    //       amplitude vectors (triples).
     auto triple012 = bispace_product(spaces1d[0], spaces1d[1], spaces1d[2]);
     auto triple345 = bispace_product(spaces1d[3], spaces1d[4], spaces1d[5]);
     return bispace_product(triple012, triple345);

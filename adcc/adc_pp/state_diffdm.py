@@ -131,7 +131,8 @@ def diffdm_cvs_adc2(mp, amplitude, intermediates):
     return dm
 
 
-def diffdm_adc3(mp, amplitude, intermediates):
+def diffdm_adc3(mp: LazyMp, amplitude: AmplitudeVector,
+                intermediates: Intermediates) -> OneParticleOperator:
     check_singles_amplitudes([b.o, b.v], amplitude)
     check_doubles_amplitudes([b.o, b.o, b.v, b.v], amplitude)
 
@@ -164,7 +165,7 @@ def diffdm_adc3(mp, amplitude, intermediates):
                             einsum('ka,kc->ac', ur1, ur1)))
         - 1 * einsum('ia,ja->ij', einsum('kb,ikab->ia', ur1, t2_1),
                      einsum('lc,jlac->ja', ur1, t2_1))  # N^4: O^2V^2 / N^4: O^2V^2
-        + 2 * (
+        + 2 * (  # factor 2: revert the 1/2 from symmetrise
             - 2 * einsum('jb,ib->ij', p0_2_ov,  # N^4: O^2V^2 / N^4: O^2V^2
                          einsum('ka,ikab->ib', ur1, ur2))
             - 0.5 * einsum('jk,ik->ij', p0_oo,  # N^3: O^2V^1 / N^2: O^1V^1
@@ -265,7 +266,7 @@ def diffdm_adc3(mp, amplitude, intermediates):
                      einsum('ikad,ij->jkad', t2_1, einsum('ic,jc->ij', ur1, ur1)))
         - 0.5 * einsum('jkbd,jkad->ab', t2_1,  # N^5: O^2V^3 / N^4: O^2V^2
                        einsum('jkac,cd->jkad', t2_1, einsum('ic,id->cd', ur1, ur1)))
-        + 2 * (
+        + 2 * (  # factor 2: revert the 1/2 from symmetrise
             + 2 * einsum('jb,ja->ab', p0_2_ov,  # N^4: O^2V^2 / N^4: O^2V^2
                          einsum('ic,ijac->ja', ur1, ur2))
             - 0.5 * einsum('ia,ib->ab', ur1,  # N^3: O^1V^2 / N^2: V^2
