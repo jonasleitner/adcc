@@ -25,6 +25,7 @@ import warnings
 import numpy as np
 
 from .LazyMp import LazyMp
+from .LazyRe import LazyRe
 from .adc_pp import matrix as ppmatrix
 from .timings import Timer, timed_member_call
 from .AdcMethod import AdcMethod
@@ -102,16 +103,17 @@ class AdcMatrix(AdcMatrixlike):
         diagonal_precomputed: adcc.AmplitudeVector
             Allows to pass a pre-computed diagonal, for internal use only.
         """
+
+        if not isinstance(method, AdcMethod):
+            method = AdcMethod(method)
+
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            hf_or_mp = LazyMp(hf_or_mp)
+            hf_or_mp = LazyRe(hf_or_mp) if method.is_re else LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a LazyMp, a ReferenceState or a "
                             "HartreeFockSolution_i.")
-
-        if not isinstance(method, AdcMethod):
-            method = AdcMethod(method)
 
         if diagonal_precomputed:
             if not isinstance(diagonal_precomputed, AmplitudeVector):
@@ -156,9 +158,11 @@ class AdcMatrix(AdcMatrixlike):
 
         # Build the blocks and diagonals
         with self.timer.record("build"):
-            variant = None
+            variant = []
             if self.is_core_valence_separated:
-                variant = "cvs"
+                variant.append("cvs")
+            if self.method.is_re:
+                variant.append("re")
             blocks = {
                 block: ppmatrix.block(self.ground_state, block.split("_"),
                                       order=order, intermediates=self.intermediates,

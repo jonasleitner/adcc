@@ -24,6 +24,7 @@ import libadcc
 
 from .AdcMatrix import AdcMatrixlike
 from .LazyMp import LazyMp
+from .LazyRe import LazyRe
 from .adc_pp import bmatrix as ppbmatrix
 from .timings import Timer, timed_member_call
 from .AdcMethod import AdcMethod
@@ -60,16 +61,19 @@ class IsrMatrix(AdcMatrixlike):
             The order of perturbation theory to employ for each matrix block.
             If not set, defaults according to the selected ADC method are chosen.
         """
+        if not isinstance(method, AdcMethod):
+            # re has the same properties like normal adc
+            # only use different ground state below, but same
+            # base_method as usual
+            method = AdcMethod(method)
+
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            hf_or_mp = LazyMp(hf_or_mp)
+            hf_or_mp = LazyRe(hf_or_mp) if method.is_re else LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a LazyMp, a ReferenceState or a "
                             "HartreeFockSolution_i.")
-
-        if not isinstance(method, AdcMethod):
-            method = AdcMethod(method)
 
         if not isinstance(operator, list):
             self.operator = [operator]

@@ -2,13 +2,15 @@ from .LazyMp import LazyMp
 from . import block as b
 from .functions import einsum
 from .misc import cached_member_function
-from .solver.conjugate_gradient import conjugate_gradient, default_print
 from .AmplitudeVector import AmplitudeVector
 
 
 class LazyRe(LazyMp):
     @cached_member_function
     def t1(self, space):
+        # can't import on top -> circular import
+        from .solver.conjugate_gradient import conjugate_gradient, default_print
+
         if space != b.ov:
             raise NotImplementedError("First order singles not implemented for "
                                       f"space {space}.")
@@ -31,6 +33,9 @@ class LazyRe(LazyMp):
 
     @cached_member_function
     def t2(self, space):
+        # can't import on top -> circular import
+        from .solver.conjugate_gradient import conjugate_gradient, default_print
+
         if space != b.oovv:
             raise NotImplementedError("First order doubles not implemented for "
                                       f"space {space}.")

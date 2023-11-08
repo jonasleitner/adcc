@@ -23,7 +23,7 @@
 
 
 def get_valid_methods():
-    valid_prefixes = ["cvs"]
+    valid_prefixes = ["cvs", "re"]
     valid_bases = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 
     ret = valid_bases + [p + "-" + m for p in valid_prefixes
@@ -43,6 +43,7 @@ class AdcMethod:
         self.__base_method = split[-1]
         split = split[:-1]
         self.is_core_valence_separated = "cvs" in split
+        self.is_re = "re" in split
 
         try:
             if self.__base_method == "adc2x":

@@ -76,12 +76,15 @@ def block(ground_state, spaces, order, variant=None, intermediates=None):
         raise ValueError("Cannot run a core-valence approximated ADC method on "
                          "top of a ground state without a "
                          "core-valence separation.")
+    if "re" in variant and "cvs" in variant:
+            raise NotImplementedError("Core-valence-approximated RE-ADC not "
+                                      "implemented.")
 
     fn = "_".join(["block"] + variant + spaces + [str(order)])
 
     if fn not in globals():
         raise ValueError("Could not dispatch: "
-                         f"spaces={spaces} order={order} variant=variant")
+                         f"spaces={spaces} order={order} variant={variant}")
     return globals()[fn](reference_state, ground_state, intermediates)
 
 
@@ -169,6 +172,10 @@ def block_ph_ph_1(hf, mp, intermediates):
 
 
 block_cvs_ph_ph_1 = block_ph_ph_1
+
+block_re_ph_ph_0 = block_ph_ph_1
+# no first order contribution for RE-ADC
+block_re_ph_ph_1 = block_ph_ph_1
 
 
 def diagonal_pphh_pphh_1(hf):
