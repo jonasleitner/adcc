@@ -25,7 +25,6 @@ import warnings
 import numpy as np
 
 from .LazyMp import LazyMp
-from .LazyRe import LazyRe
 from .adc_pp import matrix as ppmatrix
 from .timings import Timer, timed_member_call
 from .AdcMethod import AdcMethod
@@ -103,6 +102,8 @@ class AdcMatrix(AdcMatrixlike):
         diagonal_precomputed: adcc.AmplitudeVector
             Allows to pass a pre-computed diagonal, for internal use only.
         """
+        # can't import on top -> circular import
+        from .LazyRe import LazyRe
 
         if not isinstance(method, AdcMethod):
             method = AdcMethod(method)
