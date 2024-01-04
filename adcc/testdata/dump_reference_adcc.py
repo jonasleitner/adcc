@@ -27,8 +27,9 @@ import numpy as np
 import h5py
 
 
-def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", adc_tree="adc",
-                        n_states_full=None, n_guess_singles=None, **kwargs):
+def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", re_tree="re",
+                        adc_tree="adc", n_states_full=None,
+                        n_guess_singles=None, **kwargs):
     if isinstance(dumpfile, h5py.File):
         out = dumpfile
     elif isinstance(dumpfile, str):
@@ -100,6 +101,25 @@ def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", adc_tree="adc",
     )
     mp.create_dataset("mp2/dm_bb_a", compression=8, data=dm_bb_a.to_ndarray())
     mp.create_dataset("mp2/dm_bb_b", compression=8, data=dm_bb_b.to_ndarray())
+
+    # NOTE: Found some weird behaviour. The 'ElectronicTransition.reference_state'
+    #       seems to have different than the 'LazyMp.reference_state'.
+    #       Probably frozen core and frozen virtual enabled.
+    #       (10occ -> 8occ and 4virt -> 2virt for H2O sto3g)
+
+    #
+    # RE
+    #
+    if "cvs" not in method:
+        re = out.create_group(re_tree)
+        # create ground state from reference state
+        # TODO: once re-adc is implemented the LazyRe object can simply be obtained
+        #       as ground_state.
+        ground_state = adcc.LazyRe(states[0].ground_state.reference_state)
+        re["re2/energy"] = ground_state.energy_correction(2)
+        re.create_dataset("re1/t_o1o1v1v1",
+                          data=ground_state.t2("o1o1v1v1").to_ndarray(),
+                          compression=8)
 
     #
     # ADC

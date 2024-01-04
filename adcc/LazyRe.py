@@ -52,9 +52,9 @@ class LazyRe(LazyMp):
         guess = super().t2(space)
         guess = AmplitudeVector(pphh=guess)
 
-        # TODO: what about explicit symmetrisation?
+        print("\nIterating RE T2 amplitudes")
         t2 = conjugate_gradient(t2_1(hf), rhs, guess, callback=default_print,
-                                explicit_symmetrisation=None,
+                                explicit_symmetrisation=None, conv_tol=1e-12,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -114,6 +114,6 @@ class t2_1(ReAmplitude):
         # for a canonical orbital basis, the diagonal is defined by the
         # usual orbital energy difference.
         diag = direct_sum("+i+j-a-b->ijab",
-                     hf.foo.diagonal(), hf.foo.diagonal(),
-                     hf.fvv.diagonal(), hf.fvv.diagonal()).symmetrise(2, 3)
+                          hf.foo.diagonal(), hf.foo.diagonal(),
+                          hf.fvv.diagonal(), hf.fvv.diagonal()).symmetrise(2, 3)
         return AmplitudeVector(pphh=diag.evaluate())

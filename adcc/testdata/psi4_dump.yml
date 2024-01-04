@@ -2,7 +2,7 @@ formaldehyde_sto3g_pcm_adc1:
   basis: sto3g
   method: adc1
   molecule: formaldehyde
-  energy_scf: -112.35458302984607
+  energy_scf: -112.35458302984617
   lr_excitation_energy: [0.164670987, 0.360903879, 0.465492571, 0.50874055, 0.693857844]
   lr_osc_strength: [0.0, 0.01075, 0.34344, 0.0, 0.35858]
   ptlr_adcc_excitation_energy: [0.164676366, 0.360930626, 0.467575499, 0.508742077,
@@ -11,8 +11,16 @@ formaldehyde_ccpvdz_pcm_adc1:
   basis: ccpvdz
   method: adc1
   molecule: formaldehyde
-  energy_scf: -113.88427067069375
+  energy_scf: -113.88427067069408
   lr_excitation_energy: [0.178995043, 0.38176984, 0.388019451, 0.392159876, 0.435439339]
   lr_osc_strength: [0.0, 7.0e-05, 0.24871, 0.23489, 0.0]
   ptlr_adcc_excitation_energy: [0.179023803, 0.381851509, 0.389582948, 0.392594025,
     0.435463213]
+h2o_sto3g_0_remp2: {basis: sto3g, method: rept, molecule: h2o, remp_A: 0, energy_scf: -74.95931928701496,
+  energy_remp: -75.00742553349428, remp_adcc_energy: -75.0074255334943}
+cn_sto3g_0_remp2: {basis: sto3g, method: rept, molecule: cn, remp_A: 0, energy_scf: -91.02135508484324,
+  energy_remp: -91.13426677556522, remp_adcc_energy: -91.13426677556478}
+h2o_def2tzvp_0_remp2: {basis: def2tzvp, method: rept, molecule: h2o, remp_A: 0, energy_scf: -76.05916220221178,
+  energy_remp: -76.34164073897698, remp_adcc_energy: -76.3416407389769}
+cn_ccpvdz_0_remp2: {basis: ccpvdz, method: rept, molecule: cn, remp_A: 0, energy_scf: -92.2128921524315,
+  energy_remp: -92.46035973067747, remp_adcc_energy: -92.46035973067735}
