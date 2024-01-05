@@ -27,7 +27,7 @@ import numpy as np
 import h5py
 
 
-def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", re_tree="re",
+def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
                         adc_tree="adc", n_states_full=None,
                         n_guess_singles=None, **kwargs):
     if isinstance(dumpfile, h5py.File):
@@ -57,70 +57,52 @@ def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", re_tree="re",
         raise ValueError("No excited states obtained.")
 
     #
-    # MP
+    # MP // RE
     #
-    mp = out.create_group(mp_tree)
+    mp = out.create_group(gs_tree)
 
     # obtain ground state
     ground_state = states[0].ground_state
 
-    mp["mp2/energy"] = ground_state.energy_correction(2)
+    gs = "mp" if "mp" in gs_tree else "re"
+
+    mp[f"{gs}2/energy"] = ground_state.energy_correction(2)
     if "cvs" not in method:
         # TODO: MP3 energy correction missing in adcc for cvs
-        mp["mp3/energy"] = ground_state.energy_correction(3)
+        mp[f"{gs}3/energy"] = ground_state.energy_correction(3)
 
-    mp["mp2/dipole"] = ground_state.dipole_moment(level=2)
-    mp.create_dataset("mp1/t_o1o1v1v1",
+    mp[f"{gs}2/dipole"] = ground_state.dipole_moment(level=2)
+    mp.create_dataset(f"{gs}1/t_o1o1v1v1",
                       data=ground_state.t2("o1o1v1v1").to_ndarray(),
                       compression=8)
-    mp.create_dataset("mp1/df_o1v1", data=ground_state.df("o1v1").to_ndarray(),
+    mp.create_dataset(f"{gs}1/df_o1v1", data=ground_state.df("o1v1").to_ndarray(),
                       compression=8)
     if "cvs" not in method:
         # TODO: missing in adcc for cvs
-        mp.create_dataset("mp2/td_o1o1v1v1",
+        mp.create_dataset(f"{gs}2/td_o1o1v1v1",
                           data=ground_state.td2("o1o1v1v1").to_ndarray(),
                           compression=8)
     if ground_state.has_core_occupied_space:
-        mp.create_dataset("mp1/t_o2o2v1v1",
+        mp.create_dataset(f"{gs}1/t_o2o2v1v1",
                           data=ground_state.t2("o2o2v1v1").to_ndarray(),
                           compression=8)
-        mp.create_dataset("mp1/t_o1o2v1v1",
+        mp.create_dataset(f"{gs}1/t_o1o2v1v1",
                           data=ground_state.t2("o1o2v1v1").to_ndarray(),
                           compression=8)
-        mp.create_dataset("mp1/df_o2v1",
+        mp.create_dataset(f"{gs}1/df_o2v1",
                           data=ground_state.df("o2v1").to_ndarray(),
                           compression=8)
 
     for block in ["dm_o1o1", "dm_o1v1", "dm_v1v1", "dm_o2o1", "dm_o2o2", "dm_o2v1"]:
         blk = block.split("_")[-1]
         if blk in ground_state.mp2_diffdm.blocks:
-            mp.create_dataset("mp2/" + block, compression=8,
+            mp.create_dataset(f"{gs}2/" + block, compression=8,
                               data=ground_state.mp2_diffdm[blk].to_ndarray())
     dm_bb_a, dm_bb_b = ground_state.mp2_diffdm.to_ao_basis(
         ground_state.reference_state
     )
-    mp.create_dataset("mp2/dm_bb_a", compression=8, data=dm_bb_a.to_ndarray())
-    mp.create_dataset("mp2/dm_bb_b", compression=8, data=dm_bb_b.to_ndarray())
-
-    # NOTE: Found some weird behaviour. The 'ElectronicTransition.reference_state'
-    #       seems to have different than the 'LazyMp.reference_state'.
-    #       Probably frozen core and frozen virtual enabled.
-    #       (10occ -> 8occ and 4virt -> 2virt for H2O sto3g)
-
-    #
-    # RE
-    #
-    if "cvs" not in method:
-        re = out.create_group(re_tree)
-        # create ground state from reference state
-        # TODO: once re-adc is implemented the LazyRe object can simply be obtained
-        #       as ground_state.
-        ground_state = adcc.LazyRe(states[0].ground_state.reference_state,
-                                   remp_conv_tol=1e-15)
-        re["re2/energy"] = ground_state.energy_correction(2)
-        re.create_dataset("re1/t_o1o1v1v1",
-                          data=ground_state.t2("o1o1v1v1").to_ndarray(),
-                          compression=8)
+    mp.create_dataset(f"{gs}2/dm_bb_a", compression=8, data=dm_bb_a.to_ndarray())
+    mp.create_dataset(f"{gs}2/dm_bb_b", compression=8, data=dm_bb_b.to_ndarray())
 
     #
     # ADC

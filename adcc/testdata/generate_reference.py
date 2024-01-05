@@ -37,7 +37,7 @@ import adcctestdata as atd  # noqa: E402
 
 
 def dump_all(case, kwargs, kwargs_overwrite={}, spec="gen", generator="adcc"):
-    assert spec in ["gen", "cvs"]
+    assert spec in ["gen", "cvs", "re"]
     for method in ["adc0", "adc1", "adc2", "adc2x", "adc3"]:
         kw = kwargs_overwrite.get(method, kwargs)
         dump_method(case, method, kw, spec, generator=generator)
@@ -55,6 +55,12 @@ def dump_method(case, method, kwargs, spec, generator="adcc"):
         dumpfunction = dump_reference_adcc
         hfdata = adcc.DataHfProvider(h5py.File(h5file, "r"))
 
+    is_re = "re" in spec
+    if is_re:  # no special arguments needed for re -> use cvs / fc or whatever
+        spec = spec.replace("re", "").strip("-")
+        if not spec:
+            spec = "gen"
+
     # Get dictionary of parameters for the reference cases.
     refcases = ast.literal_eval(hfdata.data["reference_cases"][()].decode())
     kwargs = dict(kwargs)
@@ -64,22 +70,30 @@ def dump_method(case, method, kwargs, spec, generator="adcc"):
         kwargs.update(refcases[spec])
 
     fullmethod = method
+    if is_re:
+        fullmethod = f"re-{fullmethod}"
     if "cvs" in spec:
-        fullmethod = "cvs-" + method
+        fullmethod = "cvs-" + fullmethod
 
     prefix = ""
     if spec != "gen":
         prefix = spec.replace("-", "_") + "_"
-    adc_tree = prefix.replace("_", "-") + method
-    mp_tree = prefix.replace("_", "-") + "mp"
-    re_tree = prefix.replace("_", "-") + "re"
+    if is_re:
+        adc_tree = prefix.replace("_", "-") + "re-" + method
+        gs_tree = prefix.replace("_", "-") + "re"
+    else:
+        adc_tree = prefix.replace("_", "-") + method
+        gs_tree = prefix.replace("_", "-") + "mp"
+
+    if is_re:  # need to add it back for filename
+        prefix += "re_"
 
     if generator == "atd":
         dumpfile = "{}_reference_{}{}.hdf5".format(case, prefix, method)
     else:
         dumpfile = "{}_adcc_reference_{}{}.hdf5".format(case, prefix, method)
     if not os.path.isfile(dumpfile):
-        dumpfunction(hfdata, fullmethod, dumpfile, mp_tree=mp_tree, re_tree=re_tree,
+        dumpfunction(hfdata, fullmethod, dumpfile, gs_tree=gs_tree,
                      adc_tree=adc_tree, n_states_full=2, **kwargs)
 
 
@@ -108,12 +122,22 @@ def dump_h2o_sto3g():  # H2O restricted
     dump_method(case, "adc2x", kwargs, spec="fv")
     dump_method(case, "adc2x", kwargs, spec="fv-cvs")
 
+    kwargs = {"n_singlets": 10, "n_triplets": 10, "remp_conv_tol": 1e-15}
+    dump_method(case, "adc0", kwargs, spec="re")
+    dump_method(case, "adc1", kwargs, spec="re")
+    dump_method(case, "adc2", kwargs, spec="re")
+
 
 def dump_h2o_def2tzvp():  # H2O restricted
     kwargs = {"n_singlets": 3, "n_triplets": 3, "n_guess_singles": 6,
               "max_subspace": 24}
     dump_all("h2o_def2tzvp", kwargs, spec="gen")
     dump_all("h2o_def2tzvp", kwargs, spec="cvs")
+
+    kwargs["remp_conv_tol"] = 1e-15
+    dump_method("h2o_def2tzvp", "adc0", kwargs, spec="re")
+    dump_method("h2o_def2tzvp", "adc1", kwargs, spec="re")
+    dump_method("h2o_def2tzvp", "adc2", kwargs, spec="re")
 
 
 def dump_cn_sto3g():  # CN unrestricted
@@ -129,12 +153,24 @@ def dump_cn_sto3g():  # CN unrestricted
     dump_method(case, "adc2x", {"n_states": 4, "n_guess_singles": 8}, spec="fv")
     dump_method(case, "adc2x", {"n_states": 4}, spec="fv-cvs")
 
+    kwargs = {"n_states": 8, "n_guess_singles": 10, "remp_conv_tol": 1e-15}
+    dump_method(case, "adc0", kwargs, spec="re")
+    dump_method(case, "adc1", kwargs, spec="re")
+    dump_method(case, "adc2", kwargs, spec="re")
+
 
 def dump_cn_ccpvdz():  # CN unrestricted
     kwargs = {"n_states": 5, "n_guess_singles": 7}
     overwrite = {"adc1": {"n_states": 4, "n_guess_singles": 8}, }
     dump_all("cn_ccpvdz", kwargs, overwrite, spec="gen")
     dump_all("cn_ccpvdz", kwargs, spec="cvs")
+
+    kwargs["remp_conv_tol"] = 1e-15
+    dump_method("cn_ccpvdz", "adc0", kwargs, spec="re")
+    dump_method("cn_ccpvdz", "adc2", kwargs, spec="re")
+    kwargs["n_states"] = 4
+    kwargs["n_guess_singles"] = 8
+    dump_method("cn_ccpvdz", "adc1", kwargs, spec="re")
 
 
 def dump_hf3_631g():  # HF triplet unrestricted (spin-flip)

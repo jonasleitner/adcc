@@ -157,7 +157,7 @@ class TestdataCache():
 
     def read_reference_data(self, refname):
         prefixes = ["", "cvs", "fc", "fv", "fc_cvs",
-                    "fv_cvs", "fc_fv", "fc_fv_cvs"]
+                    "fv_cvs", "fc_fv", "fc_fv_cvs", "re"]
         raws = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
         methods = raws + ["_".join([p, r]) for p in prefixes
                           for r in raws if p != ""]

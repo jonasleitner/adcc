@@ -116,7 +116,7 @@ class LazyRe(LazyMp):
         t1 = t1.solution.ph
         return t1
 
-    @cached_member_function    
+    @cached_member_function
     def td2(self, space):
         """Second order RE ground state doubles amplitudes"""
         # can't import on top -> circular import
