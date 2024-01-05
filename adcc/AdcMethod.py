@@ -60,6 +60,8 @@ class AdcMethod:
         """
         if self.is_core_valence_separated:
             return AdcMethod("cvs-adc" + str(newlevel))
+        elif self.is_re:
+            return AdcMethod(f"re-adc{newlevel}")
         else:
             return AdcMethod("adc" + str(newlevel))
 
@@ -67,6 +69,8 @@ class AdcMethod:
     def name(self):
         if self.is_core_valence_separated:
             return "cvs-" + self.__base_method
+        elif self.is_re:
+            return "re-" + self.__base_method
         else:
             return self.__base_method
 

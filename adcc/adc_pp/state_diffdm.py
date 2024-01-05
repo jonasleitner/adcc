@@ -141,6 +141,10 @@ DISPATCH = {
     "cvs-adc1": diffdm_adc0,   # same as ADC(0)
     "cvs-adc2": diffdm_cvs_adc2,
     "cvs-adc2x": diffdm_cvs_adc2,
+    # RE-ADC and normal ADC share the same properties
+    "re-adc0": diffdm_adc0,
+    "re-adc1": diffdm_adc0,
+    "re-adc2": diffdm_adc2
 }
 
 

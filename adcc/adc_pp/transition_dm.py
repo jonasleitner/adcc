@@ -110,6 +110,10 @@ DISPATCH = {
     "cvs-adc1": tdm_adc0,  # No extra contribs for CVS-ADC(1)
     "cvs-adc2": tdm_cvs_adc2,
     "cvs-adc2x": tdm_cvs_adc2,
+    # RE-ADC and normal ADC share the same properties
+    "re-adc0": tdm_adc0,
+    "re-adc1": tdm_adc1,
+    "re-adc2": tdm_adc2,
 }
 
 
