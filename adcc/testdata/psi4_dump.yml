@@ -23,4 +23,4 @@ cn_sto3g_0_remp2: {basis: sto3g, method: rept, molecule: cn, remp_A: 0, energy_s
 h2o_def2tzvp_0_remp2: {basis: def2tzvp, method: rept, molecule: h2o, remp_A: 0, energy_scf: -76.05916220221178,
   energy_remp: -76.34164073897698, remp_adcc_energy: -76.3416407389769}
 cn_ccpvdz_0_remp2: {basis: ccpvdz, method: rept, molecule: cn, remp_A: 0, energy_scf: -92.2128921524315,
-  energy_remp: -92.46035973067747, remp_adcc_energy: -92.46035973067735}
+  energy_remp: -92.46035973067747, remp_adcc_energy: -92.46035973067737}

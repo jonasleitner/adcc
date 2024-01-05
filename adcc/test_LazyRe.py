@@ -22,7 +22,7 @@
 ## ---------------------------------------------------------------------
 from .misc import expand_test_templates
 from .testdata.cache import cache, psi4_data
-from .backends import available
+from . import backends
 from .LazyRe import LazyRe
 from .backends import import_scf_results
 from .testdata import static_data
@@ -38,29 +38,28 @@ if cache.mode_full:
     testcases += ["h2o_def2tzvp", "cn_ccpvdz"]
 
 
-# remp reference data only available for Psi4
-@pytest.mark.skipif("psi4" not in available(), reason="Psi4 not available")
 @expand_test_templates(testcases)
 class TestLazyRe(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.re = {}
         for case in testcases:
-            cls.re[case] = LazyRe(cache.refstate[case])
+            cls.re[case] = LazyRe(cache.refstate[case], remp_conv_tol=1e-15)
 
     def template_re2_energy(self, case):
         # 1) compare against the dumped psi4 reference data
-        ref_data = psi4_data[f"{case}_0_remp2"]
-        mol, basis = case.split("_")
-        if mol == "cn":
-            hf = run_psi4_scf(static_data.xyz[mol], basis, multiplicity=2)
-        else:
-            hf = run_psi4_scf(static_data.xyz[mol], basis)
+        if "psi4" in backends.available():
+            ref_data = psi4_data[f"{case}_0_remp2"]
+            mol, basis = case.split("_")
+            if mol == "cn":
+                hf = run_psi4_scf(static_data.xyz[mol], basis, multiplicity=2)
+            else:
+                hf = run_psi4_scf(static_data.xyz[mol], basis)
 
-        assert_allclose(hf.energy_scf, ref_data["energy_scf"], atol=1e-12)
-        re = LazyRe(hf)
-        assert_allclose(re.energy(2), ref_data["energy_remp"], atol=1e-12)
-        assert_allclose(re.energy(2), ref_data["remp_adcc_energy"], atol=1e-12)
+            assert_allclose(hf.energy_scf, ref_data["energy_scf"], atol=1e-12)
+            re = LazyRe(hf, remp_conv_tol=1e-15)
+            assert_allclose(re.energy(2), ref_data["energy_remp"], atol=1e-12)
+            assert_allclose(re.energy(2), ref_data["remp_adcc_energy"], atol=1e-12)
 
         # 2) consistency test against cached adcc data
         ref_data = cache.adcc_reference_data[case]["re"]

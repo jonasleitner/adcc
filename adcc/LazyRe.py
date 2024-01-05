@@ -7,8 +7,27 @@ from .AdcMatrix import AdcMatrixlike
 
 
 class LazyRe(LazyMp):
+    # As long as the first order singles are neglected the energy and
+    # density matrix expressions are the same (only checked through second order)
+    # as for the MP ground state.
+    # Therefore, only the methods for the determination of t-amplitudes
+    # are defined on the LazyRe class.
+
+    def __init__(self, hf, remp_conv_tol=None):
+        """Initialise the retaining the excitation degree (RE) ground state class.
+        """
+        # TODO: What is a good default value for the convergence tolerance?
+        # excitation energies seem to be insensitive to the convergence tolerance
+        # as even a tolerance of 1e-5 only introduces a error of 1e-6eV for
+        # H2O cc-pvtz.
+        if remp_conv_tol is None:
+            remp_conv_tol = hf.conv_tol
+        self.remp_conv_tol = remp_conv_tol
+        super().__init__(hf)
+
     @cached_member_function
     def t1(self, space):
+        """First order RE ground state singles amplitudes."""
         # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
@@ -22,19 +41,20 @@ class LazyRe(LazyMp):
         rhs = -hf.fov
         rhs = AmplitudeVector(ph=rhs)
 
-        # guess: 0 will be instantly converged for canonical orbtitals
-        #   -> use 1 guess
-        guess = hf.fov.ones_like()
+        # zero guess leads to instant convergence for canonical orbitals
+        guess = hf.fov.zeros_like()
         guess = AmplitudeVector(ph=guess)
 
+        print("\nIterating first order RE singles amplitudes...")
         t1 = conjugate_gradient(t1_1(hf), rhs, guess, callback=default_print,
-                                explicit_symmetrisation=None,
+                                conv_tol=self.remp_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
 
     @cached_member_function
     def t2(self, space):
+        """First order RE ground state doubles amplitudes."""
         # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
@@ -48,24 +68,22 @@ class LazyRe(LazyMp):
         rhs = -hf.oovv
         rhs = AmplitudeVector(pphh=rhs)
 
-        # build a guess for the t-amplitudes: use mp-amplitudes for now
+        # build a guess for the t-amplitudes: use mp-amplitudes as they only
+        # scale N^4, while each iteration scales as N^6
         guess = super().t2(space)
         guess = AmplitudeVector(pphh=guess)
 
-        print("\nIterating RE T2 amplitudes")
+        print("\nIterating first order RE doubles amplitudes...")
         t2 = conjugate_gradient(t2_1(hf), rhs, guess, callback=default_print,
-                                explicit_symmetrisation=None, conv_tol=1e-12,
+                                conv_tol=self.remp_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
 
-
-class doubles_sym:
-    def symmetrise(self, vec):
-        if isinstance(vec, list):
-            return [self.symmetrise(v) for v in vec]
-        vec['pphh'] = vec.pphh.antisymmetrise(0, 1).antisymmetrise(2, 3)
-        return vec
+    def td2(self, space):
+        """Second order RE ground state doubles amplitudes"""
+        raise NotImplementedError("Second order RE Doubles amplitudes not "
+                                  "implemented")
 
 
 class ReAmplitude(AdcMatrixlike):

@@ -84,7 +84,7 @@ class AdcMatrix(AdcMatrixlike):
     }
 
     def __init__(self, method, hf_or_mp, block_orders=None, intermediates=None,
-                 diagonal_precomputed=None):
+                 diagonal_precomputed=None, remp_conv_tol=None):
         """
         Initialise an ADC matrix.
 
@@ -110,7 +110,10 @@ class AdcMatrix(AdcMatrixlike):
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            hf_or_mp = LazyRe(hf_or_mp) if method.is_re else LazyMp(hf_or_mp)
+            if method.is_re:
+                hf_or_mp = LazyRe(hf_or_mp, remp_conv_tol)
+            else:
+                hf_or_mp = LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a LazyMp, a ReferenceState or a "

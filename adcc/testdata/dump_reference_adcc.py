@@ -115,7 +115,8 @@ def dump_reference_adcc(data, method, dumpfile, mp_tree="mp", re_tree="re",
         # create ground state from reference state
         # TODO: once re-adc is implemented the LazyRe object can simply be obtained
         #       as ground_state.
-        ground_state = adcc.LazyRe(states[0].ground_state.reference_state)
+        ground_state = adcc.LazyRe(states[0].ground_state.reference_state,
+                                   remp_conv_tol=1e-15)
         re["re2/energy"] = ground_state.energy_correction(2)
         re.create_dataset("re1/t_o1o1v1v1",
                           data=ground_state.t2("o1o1v1v1").to_ndarray(),

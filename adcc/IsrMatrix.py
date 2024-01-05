@@ -43,7 +43,8 @@ class IsrMatrix(AdcMatrixlike):
         "adc3":  dict(ph_ph=3, ph_pphh=2,    pphh_ph=2,    pphh_pphh=1),     # noqa: E501
     }
 
-    def __init__(self, method, hf_or_mp, operator, block_orders=None):
+    def __init__(self, method, hf_or_mp, operator, block_orders=None,
+                 remp_conv_tol=None):
         """
         Initialise an ISR matrix of a given one-particle operator
         for the provided ADC method.
@@ -69,7 +70,10 @@ class IsrMatrix(AdcMatrixlike):
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            hf_or_mp = LazyRe(hf_or_mp) if method.is_re else LazyMp(hf_or_mp)
+            if method.is_re:
+                hf_or_mp = LazyRe(hf_or_mp, remp_conv_tol=remp_conv_tol)
+            else:
+                hf_or_mp = LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a LazyMp, a ReferenceState or a "
