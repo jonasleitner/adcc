@@ -78,6 +78,18 @@ class LazyMp:
         )
 
     @cached_member_function
+    def ts2(self, space):
+        """Computes the second order singles amplitudes."""
+        if space != b.ov:
+            raise NotImplementedError("Second order singles amplitudes not "
+                                      f"implemented for space {space}.")
+        hf = self.reference_state
+        return -0.5 * (
+            + einsum("ijbc,jabc->ia", self.t2oo, hf.ovvv)
+            + einsum("jkib,jkab->ia", hf.ooov, self.t2oo)
+        ) / self.df(b.ov)
+
+    @cached_member_function
     def td2(self, space):
         """Return the T^D_2 term"""
         if space != b.oovv:
@@ -129,10 +141,7 @@ class LazyMp:
         # NOTE: the following 3 blocks are equivalent to the cvs_p0 intermediates
         # defined at the end of this file
         ret.oo = -0.5 * einsum("ikab,jkab->ij", self.t2oo, self.t2oo)
-        ret.ov = -0.5 * (
-            + einsum("ijbc,jabc->ia", self.t2oo, hf.ovvv)
-            + einsum("jkib,jkab->ia", hf.ooov, self.t2oo)
-        ) / self.df(b.ov)
+        ret.ov = self.ts2(b.ov)
         ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
 
         if self.has_core_occupied_space:
