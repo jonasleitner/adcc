@@ -101,6 +101,35 @@ def tdm_adc2(mp, amplitude, intermediates):
     return dm
 
 
+def tdm_re_adc2(re, amplitude, intermediates):
+    # NOTE: equations are the same as for adc. Just removed all terms where the td2
+    # tensor occured, because the second order RE doubles amplitudes vanish
+    # for block diagonal fock matrices.
+    dm = tdm_adc1(re, amplitude, intermediates)  # Get ADC(1) result
+    check_doubles_amplitudes([b.o, b.o, b.v, b.v], amplitude)
+    u1 = amplitude.ph
+    u2 = amplitude.pphh
+
+    t2 = re.t2(b.oovv)
+    p0 = re.mp2_diffdm
+
+    # Compute ADC(2) tdm
+    dm.oo = (  # adc2_dp0_oo
+        - einsum("ia,ja->ij", p0.ov, u1)
+        - einsum("ikab,jkab->ji", u2, t2)
+    )
+    dm.vv = (  # adc2_dp0_vv
+        + einsum("ia,ib->ab", u1, p0.ov)
+        + einsum("ijac,ijbc->ab", u2, t2)
+    )
+    dm.vo += 0.5 * (  # adc2_dp0_vo
+        + einsum("ijab,jkbc,kc->ai", t2, t2, u1)
+        - einsum("ab,ib->ai", p0.vv, u1)
+        + einsum("ja,ij->ai", u1, p0.oo)
+    )
+    return dm
+
+
 DISPATCH = {
     "adc0": tdm_adc0,
     "adc1": tdm_adc1,
@@ -113,7 +142,7 @@ DISPATCH = {
     # RE-ADC and normal ADC share the same properties
     "re-adc0": tdm_adc0,
     "re-adc1": tdm_adc1,
-    "re-adc2": tdm_adc2,
+    "re-adc2": tdm_re_adc2,
 }
 
 

@@ -79,9 +79,11 @@ class TestLazyRe(unittest.TestCase):
 
     def template_td2(self, case):
         re = self.re[case]
-        ref_data = cache.adcc_reference_data[case]["re"]
-        assert_allclose(re.td2("o1o1v1v1").to_ndarray(),
-                        ref_data["re2"]["td_o1o1v1v1"], atol=1e-12)
+        with pytest.raises(RuntimeError):
+            re.td2("o1o1v1v1")
+        # ref_data = cache.adcc_reference_data[case]["re"]
+        # assert_allclose(re.td2("o1o1v1v1").to_ndarray(),
+        #                 ref_data["re2"]["td_o1o1v1v1"], atol=1e-12)
 
     def template_re2_density_mo(self, case):
         mp2diff = self.re[case].mp2_diffdm

@@ -7,11 +7,12 @@ from .AdcMatrix import AdcMatrixlike
 
 
 class LazyRe(LazyMp):
-    # As long as the first order singles are neglected the energy and
-    # density matrix expressions are the same (only checked through second order)
+    # As long as the first order singles are zero, i.e., the fock matrix is block
+    # diagonal, the energy and density matrix expressions are the same
     # as for the MP ground state.
     # Therefore, only methods for the calculation of t-amplitudes
-    # are defined on the LazyRe class.
+    # are defined on the LazyRe class. An exception is the energy_correction,
+    # which is redefined here to avoid the unnecessary computation of the td2 tensor
 
     def __init__(self, hf, remp_conv_tol=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
@@ -27,7 +28,12 @@ class LazyRe(LazyMp):
 
     @cached_member_function
     def ts1(self, space):
-        """First order RE ground state singles amplitudes."""
+        """First order RE ground state singles amplitudes.
+           Zero for a block diagonal Fock matrix.
+        """
+        raise RuntimeError("The first order RE singles amplitudes vanish for a "
+                           "block diagonal fock matrix. Probably you don't need "
+                           "this tensor.")
         # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
@@ -118,7 +124,13 @@ class LazyRe(LazyMp):
 
     @cached_member_function
     def td2(self, space):
-        """Second order RE ground state doubles amplitudes"""
+        """Second order RE ground state doubles amplitudes
+           Zero as long as the first order singles are 0
+           -> Zero for a block diagonal Fock matrix
+        """
+        raise RuntimeError("The second order RE doubles amplitudes vanish for a "
+                           "block diagonal fock matrix. Probably you don't need "
+                           "this tensor.")
         # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
@@ -142,6 +154,22 @@ class LazyRe(LazyMp):
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
+
+    @cached_member_function
+    def energy_correction(self, level=2):
+        """Obtain the RE energy correction at a particular level"""
+        if level > 3:
+            raise NotImplementedError(f"RE({level}) energy correction "
+                                      "not implemented.")
+        if level < 2:
+            return 0.0
+        hf = self.reference_state
+        if level == 2:
+            return -0.25 * hf.oovv.dot(self.t2oo)
+        elif level == 3:
+            # for a block diagonal fock matrix the third order energy correction
+            # vanishes, since the td2 tensor is zero
+            return self.energy_correction(2)
 
 
 class ReAmplitude(AdcMatrixlike):

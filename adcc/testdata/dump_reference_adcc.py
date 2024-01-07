@@ -77,7 +77,7 @@ def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
                       compression=8)
     mp.create_dataset(f"{gs}1/df_o1v1", data=ground_state.df("o1v1").to_ndarray(),
                       compression=8)
-    if "cvs" not in method:
+    if "cvs" not in method and "re" not in method:
         # TODO: missing in adcc for cvs
         mp.create_dataset(f"{gs}2/td_o1o1v1v1",
                           data=ground_state.td2("o1o1v1v1").to_ndarray(),
