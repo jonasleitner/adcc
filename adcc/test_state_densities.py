@@ -33,9 +33,11 @@ from pytest import approx, skip
 basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 methods = [m for bm in basemethods for m in [bm, "cvs_" + bm]]
 
+# methods for consistency tests: for re-adc we only have adcc reference data
+consistency_methods = methods + ["re_adc0", "re_adc1", "re_adc2"]
 
-@expand_test_templates(methods)
-class Runners():
+
+class BaseRunners():
     def base_test(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -57,8 +59,21 @@ class Runners():
     def template_cn_ccpvdz(self, method):
         self.base_test("cn_ccpvdz", method, "state")
 
-    def template_hf3_631g_spin_flip(self, method):
-        self.base_test("hf3_631g", method, "spin_flip")
+    # expand the spin_flip tests, since we don't run them for cvs and re
+    def test_hf3_631g_spin_flip_adc0(self):
+        self.base_test("hf3_631g", "adc0", "spin_flip")
+
+    def test_hf3_631g_spin_flip_adc1(self):
+        self.base_test("hf3_631g", "adc1", "spin_flip")
+
+    def test_hf3_631g_spin_flip_adc2(self):
+        self.base_test("hf3_631g", "adc2", "spin_flip")
+
+    def test_hf3_631g_spin_flip_adc2x(self):
+        self.base_test("hf3_631g", "adc2x", "spin_flip")
+
+    def test_hf3_631g_spin_flip_adc3(self):
+        self.base_test("hf3_631g", "adc3", "spin_flip")
 
     #
     # Other runners (to test that FC and FV work as they should)
@@ -94,15 +109,16 @@ class Runners():
         self.base_test("h2s_6311g", "fv_cvs_adc2x", "singlet")
 
 
-# Return combinations not tested so far:
-#     The rationale is that cvs-spin-flip as a method do not make
-#     that much sense and probably the routines are anyway covered
-#     by the other testing we do.
-delattr(Runners, "test_hf3_631g_spin_flip_cvs_adc0")
-delattr(Runners, "test_hf3_631g_spin_flip_cvs_adc1")
-delattr(Runners, "test_hf3_631g_spin_flip_cvs_adc2")
-delattr(Runners, "test_hf3_631g_spin_flip_cvs_adc2x")
-delattr(Runners, "test_hf3_631g_spin_flip_cvs_adc3")
+# Inherit from this class to run tests for methods against Qchem reference data
+@expand_test_templates(methods)
+class Runners(BaseRunners):
+    pass
+
+
+# Inherit from this class to run tests against adcc reference data
+@expand_test_templates(consistency_methods)
+class ConsistencyRunners(BaseRunners):
+    pass
 
 
 class TestStateDiffDm(unittest.TestCase, Runners):
@@ -127,7 +143,7 @@ class TestStateDiffDm(unittest.TestCase, Runners):
 
 # For the ground-to-excited state tdm, only consistency tests are
 # performed due to the changes in transition_dm.py
-class TestStateGroundToExcitedTdm(unittest.TestCase, Runners):
+class TestStateGroundToExcitedTdm(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
 

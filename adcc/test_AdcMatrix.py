@@ -44,6 +44,7 @@ from .Intermediates import Intermediates
 testcases = ["h2o_sto3g", "cn_sto3g"]
 basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 methods = [m for bm in basemethods for m in [bm, "cvs-" + bm]]
+methods += ["re-adc0", "re-adc1", "re-adc2"]
 
 # TODO Also test these cases:
 # methods += ["fc-adc2", "fv-adc2x", "fv-cvs-adc2x", "fc-fv-adc2"]
@@ -51,8 +52,14 @@ methods = [m for bm in basemethods for m in [bm, "cvs-" + bm]]
 
 @expand_test_templates(list(itertools.product(testcases, methods)))
 class TestAdcMatrix(unittest.TestCase):
+    def ref_data(self, case, method):
+        if "re" in method:  # we only have adcc ref data for re
+            return cache.adcc_reference_data[case]
+        else:
+            return cache.reference_data[case]
+
     def construct_matrix(self, case, method):
-        refdata = cache.reference_data[case]
+        refdata = self.ref_data(case, method)
         matdata = refdata[method]["matrix"]
         if "cvs" in method:
             refstate = cache.refstate_cvs[case]
@@ -63,9 +70,12 @@ class TestAdcMatrix(unittest.TestCase):
         return matrix, matdata
 
     def construct_input(self, case, method):
-        refdata = cache.reference_data[case]
+        refdata = self.ref_data(case, method)
         firstkind = refdata["available_kinds"][0]
-        state = cache.adc_states[case][method][firstkind]
+        if "re" in method:
+            state = cache.adcc_states[case][method][firstkind]
+        else:
+            state = cache.adc_states[case][method][firstkind]
         matdata = refdata[method]["matrix"]
 
         out = state.excitation_vector[0].copy()

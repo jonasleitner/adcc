@@ -26,11 +26,11 @@ import numpy as np
 from numpy.testing import assert_allclose
 from adcc.testdata.cache import cache
 
-from .test_state_densities import Runners
+from .test_state_densities import ConsistencyRunners
 from pytest import approx
 
 
-class TestMagneticTransitionDipoleMoments(unittest.TestCase, Runners):
+class TestMagneticTransitionDipoleMoments(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
@@ -46,7 +46,7 @@ class TestMagneticTransitionDipoleMoments(unittest.TestCase, Runners):
         )
 
 
-class TestTransitionDipoleMomentsVelocity(unittest.TestCase, Runners):
+class TestTransitionDipoleMomentsVelocity(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
@@ -62,7 +62,7 @@ class TestTransitionDipoleMomentsVelocity(unittest.TestCase, Runners):
         )
 
 
-class TestRotatoryStrengths(unittest.TestCase, Runners):
+class TestRotatoryStrengths(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
