@@ -34,6 +34,7 @@ from pytest import skip, approx
 # The methods to test
 basemethods = ["adc0", "adc1", "adc2"]
 methods = [m for bm in basemethods for m in [bm, "cvs-" + bm]]
+methods += ["re-" + m for m in basemethods]
 
 operator_kinds = ["electric", "magnetic"]
 

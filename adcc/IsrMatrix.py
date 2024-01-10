@@ -66,9 +66,6 @@ class IsrMatrix(AdcMatrixlike):
             (default: SCF tolerance).
         """
         if not isinstance(method, AdcMethod):
-            # re has the same properties like normal adc
-            # only use different ground state below, but same
-            # base_method as usual
             method = AdcMethod(method)
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
@@ -97,6 +94,7 @@ class IsrMatrix(AdcMatrixlike):
         self.reference_state = hf_or_mp.reference_state
         self.mospaces = hf_or_mp.reference_state.mospaces
         self.is_core_valence_separated = method.is_core_valence_separated
+        self.is_re = method.is_re
         self.ndim = 2
         self.extra_terms = []
 
@@ -125,6 +123,9 @@ class IsrMatrix(AdcMatrixlike):
             variant = None
             if self.is_core_valence_separated:
                 variant = "cvs"
+            # for RE-ADC we don't need to define a variant, since the usual
+            # ADC properties can be used - just with a different ground state
+            # -> skip the self.is_re check
             blocks = [{
                 block: ppbmatrix.block(self.ground_state, op,
                                        block.split("_"), order=order,

@@ -81,6 +81,27 @@ def mtm_cvs_adc2(mp, op, intermediates):
     return ampl + AmplitudeVector(ph=f1, pphh=f2)
 
 
+def mtm_re_adc2(mp, op, intermediates):
+    t2 = mp.t2(b.oovv)
+    p0 = mp.mp2_diffdm
+
+    op_vo = op.ov.transpose() if op.is_symmetric else op.vo
+
+    ampl = mtm_adc1(mp, op, intermediates)
+    f1 = (
+        + 0.5 * einsum("ijab,jkbc,ck->ia", t2, t2, op_vo)
+        + 0.5 * einsum("ij,aj->ia", p0.oo, op_vo)
+        - 0.5 * einsum("bi,ab->ia", op_vo, p0.vv)
+        + 1.0 * einsum("ib,ab->ia", p0.ov, op.vv)
+        - 1.0 * einsum("ji,ja->ia", op.oo, p0.ov)
+    )
+    f2 = (
+        + 1.0 * einsum("ijac,bc->ijab", t2, op.vv).antisymmetrise(2, 3)
+        + 1.0 * einsum("ki,jkab->ijab", op.oo, t2).antisymmetrise(0, 1)
+    )
+    return ampl + AmplitudeVector(ph=f1, pphh=f2)
+
+
 DISPATCH = {
     "adc0": mtm_adc0,
     "adc1": mtm_adc1,
@@ -88,6 +109,9 @@ DISPATCH = {
     "cvs-adc0": mtm_cvs_adc0,
     "cvs-adc1": mtm_cvs_adc0,  # Identical to CVS-ADC(0)
     "cvs-adc2": mtm_cvs_adc2,
+    "re-adc0": mtm_adc0,
+    "re-adc1": mtm_adc1,
+    "re-adc2": mtm_re_adc2,
 }
 
 

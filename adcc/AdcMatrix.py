@@ -113,8 +113,9 @@ class AdcMatrix(AdcMatrixlike):
 
         if method.name == "re-adc2x":
             # first order contribution to the DD block is zero!
-            warnings.warn("RE-ADC(2)x and RE-ADC(2) are the same and will "
-                          "therefore give identical results.")
+            warnings.warn("The secular matrix of RE-ADC(2)x and RE-ADC(2) are the "
+                          "same. Therefore, identical results are expected for "
+                          "both methods.")
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
@@ -141,6 +142,7 @@ class AdcMatrix(AdcMatrixlike):
         self.reference_state = hf_or_mp.reference_state
         self.mospaces = hf_or_mp.reference_state.mospaces
         self.is_core_valence_separated = method.is_core_valence_separated
+        self.is_re = method.is_re
         self.ndim = 2
         self.extra_terms = []
 
@@ -173,7 +175,7 @@ class AdcMatrix(AdcMatrixlike):
             variant = []
             if self.is_core_valence_separated:
                 variant.append("cvs")
-            if self.method.is_re:
+            if self.is_re:
                 variant.append("re")
             blocks = {
                 block: ppmatrix.block(self.ground_state, block.split("_"),

@@ -32,6 +32,8 @@ from pytest import skip
 
 
 testcases = [("h2o_sto3g", "singlet"), ("cn_sto3g", "any")]
+# since RE-ADC uses the s2stdm and bmatrix of ADC, we don't need to run
+# additional RE-ADC tests here as this is already covered by the ADC tests.
 methods = ["adc0", "adc1", "adc2"]
 operator_kinds = ["electric", "magnetic"]
 
