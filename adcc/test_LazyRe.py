@@ -70,6 +70,7 @@ class TestLazyRe(unittest.TestCase):
         re = self.re[case]
         ref_data = cache.adcc_reference_data[case]["re"]
         assert re.energy_correction(3) == pytest.approx(ref_data["re3"]["energy"])
+        assert re.energy_correction(3) == 0  # zero for block diagonal fock matrix
 
     def template_t2(self, case):
         re = self.re[case]

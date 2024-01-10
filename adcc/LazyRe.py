@@ -1,19 +1,13 @@
 from .LazyMp import LazyMp
 from . import block as b
 from .functions import einsum, direct_sum
-from .misc import cached_member_function
+from .misc import cached_member_function, cached_property
 from .AmplitudeVector import AmplitudeVector
 from .AdcMatrix import AdcMatrixlike
+from .timings import timed_member_call
 
 
 class LazyRe(LazyMp):
-    # As long as the first order singles are zero, i.e., the fock matrix is block
-    # diagonal, the energy and density matrix expressions are the same
-    # as for the MP ground state.
-    # Therefore, only methods for the calculation of t-amplitudes
-    # are defined on the LazyRe class. An exception is the energy_correction,
-    # which is redefined here to avoid the unnecessary computation of the td2 tensor
-
     def __init__(self, hf, remp_conv_tol=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
         """
@@ -97,7 +91,7 @@ class LazyRe(LazyMp):
         from .solver.preconditioner import JacobiPreconditioner
 
         if space != b.ov:
-            raise NotImplementedError("First order singles not implemented for "
+            raise NotImplementedError("Second order singles not implemented for "
                                       f"space {space}.")
         hf = self.reference_state
         t2_1 = self.t2(b.oovv)
@@ -155,6 +149,10 @@ class LazyRe(LazyMp):
         t2 = t2.solution.pphh
         return t2
 
+    @property
+    def re2_diffdm(self):
+        return super().mp2_diffdm
+
     @cached_member_function
     def energy_correction(self, level=2):
         """Obtain the RE energy correction at a particular level"""
@@ -169,7 +167,26 @@ class LazyRe(LazyMp):
         elif level == 3:
             # for a block diagonal fock matrix the third order energy correction
             # vanishes, since the td2 tensor is zero
-            return self.energy_correction(2)
+            return 0.0
+
+    @cached_member_function
+    def energy(self, level=2):
+        """Obtain the total energy (SCF energy plus all corrections)
+           at a particular level of perturbation theory.
+        """
+        # We already have in 0th order the HF energy for RE
+        energies = [self.reference_state.energy_scf]
+        for order in range(2, level + 1):
+            energies.append(self.energy_correction(order))
+        return sum(energies)
+
+    @property
+    def re2_density(self):
+        return self.density(2)
+
+    @property
+    def re2_dipole_moment(self):
+        return super().mp2_dipole_moment
 
 
 class ReAmplitude(AdcMatrixlike):
