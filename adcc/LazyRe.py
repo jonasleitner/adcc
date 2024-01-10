@@ -1,23 +1,22 @@
 from .LazyMp import LazyMp
 from . import block as b
 from .functions import einsum, direct_sum
-from .misc import cached_member_function, cached_property
+from .misc import cached_member_function
 from .AmplitudeVector import AmplitudeVector
 from .AdcMatrix import AdcMatrixlike
-from .timings import timed_member_call
 
 
 class LazyRe(LazyMp):
-    def __init__(self, hf, remp_conv_tol=None):
+    def __init__(self, hf, re_conv_tol=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
         """
         # TODO: What is a good default value for the convergence tolerance?
         # excitation energies seem to be insensitive to the convergence tolerance
         # as even a tolerance of 1e-5 only introduces a error of 1e-6eV for
         # H2O cc-pvtz.
-        if remp_conv_tol is None:
-            remp_conv_tol = hf.conv_tol
-        self.remp_conv_tol = remp_conv_tol
+        if re_conv_tol is None:
+            re_conv_tol = hf.conv_tol
+        self.re_conv_tol = re_conv_tol
         super().__init__(hf)
 
     @cached_member_function
@@ -49,7 +48,7 @@ class LazyRe(LazyMp):
         print("\nIterating first order RE singles amplitudes...")
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.remp_conv_tol,
+                                conv_tol=self.re_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -78,7 +77,7 @@ class LazyRe(LazyMp):
         print("\nIterating first order RE doubles amplitudes...")
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.remp_conv_tol,
+                                conv_tol=self.re_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -111,7 +110,7 @@ class LazyRe(LazyMp):
         print("\nIterating Second order RE singles amplitudes...")
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.remp_conv_tol,
+                                conv_tol=self.re_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -144,7 +143,7 @@ class LazyRe(LazyMp):
         print("\nIterating Second order RE doubles amplitudes...")
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.remp_conv_tol,
+                                conv_tol=self.re_conv_tol,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2

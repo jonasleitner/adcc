@@ -143,6 +143,7 @@ DISPATCH = {
     "re-adc0": tdm_adc0,
     "re-adc1": tdm_adc1,
     "re-adc2": tdm_re_adc2,
+    "re-adc2x": tdm_re_adc2,
 }
 
 

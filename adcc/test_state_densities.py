@@ -34,7 +34,7 @@ basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 methods = [m for bm in basemethods for m in [bm, "cvs_" + bm]]
 
 # methods for consistency tests: for re-adc we only have adcc reference data
-consistency_methods = methods + ["re_adc0", "re_adc1", "re_adc2"]
+consistency_methods = methods + ["re-" + m for m in basemethods]
 
 
 class BaseRunners():

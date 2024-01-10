@@ -144,7 +144,8 @@ DISPATCH = {
     # RE-ADC and normal ADC share the same properties
     "re-adc0": diffdm_adc0,
     "re-adc1": diffdm_adc0,
-    "re-adc2": diffdm_adc2
+    "re-adc2": diffdm_adc2,
+    "re-adc2x": diffdm_adc2
 }
 
 

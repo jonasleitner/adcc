@@ -67,12 +67,12 @@ class AdcMethod:
 
     @property
     def name(self):
+        method = self.__base_method
+        if self.is_re:
+            method = "re-" + method
         if self.is_core_valence_separated:
-            return "cvs-" + self.__base_method
-        elif self.is_re:
-            return "re-" + self.__base_method
-        else:
-            return self.__base_method
+            method = "cvs-" + method
+        return method
 
     @property
     def property_method(self):

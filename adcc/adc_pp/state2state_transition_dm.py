@@ -109,7 +109,8 @@ DISPATCH = {"adc0": s2s_tdm_adc0,
             # RE-ADC and normal ADC share the same properties
             "re-adc0": s2s_tdm_adc0,
             "re-adc1": s2s_tdm_adc0,       # same as ADC(0)
-            "re-adc2": s2s_tdm_adc2}
+            "re-adc2": s2s_tdm_adc2,
+            "re-adc2x": s2s_tdm_adc2}
 
 
 def state2state_transition_dm(method, ground_state, amplitude_from,

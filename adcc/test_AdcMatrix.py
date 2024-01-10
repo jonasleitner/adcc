@@ -44,7 +44,7 @@ from .Intermediates import Intermediates
 testcases = ["h2o_sto3g", "cn_sto3g"]
 basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 methods = [m for bm in basemethods for m in [bm, "cvs-" + bm]]
-methods += ["re-adc0", "re-adc1", "re-adc2"]
+methods += ["re-" + m for m in basemethods]
 
 # TODO Also test these cases:
 # methods += ["fc-adc2", "fv-adc2x", "fv-cvs-adc2x", "fc-fv-adc2"]
@@ -66,7 +66,10 @@ class TestAdcMatrix(unittest.TestCase):
         else:
             refstate = cache.refstate[case]
 
-        matrix = adcc.AdcMatrix(method, refstate)
+        if "re" in method:
+            matrix = adcc.AdcMatrix(method, refstate, re_conv_tol=1e-15)
+        else:
+            matrix = adcc.AdcMatrix(method, refstate)
         return matrix, matdata
 
     def construct_input(self, case, method):

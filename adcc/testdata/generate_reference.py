@@ -122,10 +122,8 @@ def dump_h2o_sto3g():  # H2O restricted
     dump_method(case, "adc2x", kwargs, spec="fv")
     dump_method(case, "adc2x", kwargs, spec="fv-cvs")
 
-    kwargs = {"n_singlets": 10, "n_triplets": 10, "remp_conv_tol": 1e-15}
-    dump_method(case, "adc0", kwargs, spec="re")
-    dump_method(case, "adc1", kwargs, spec="re")
-    dump_method(case, "adc2", kwargs, spec="re")
+    kwargs = {"n_singlets": 10, "n_triplets": 10, "re_conv_tol": 1e-15}
+    dump_all(case, kwargs, spec="re")
 
 
 def dump_h2o_def2tzvp():  # H2O restricted
@@ -134,10 +132,8 @@ def dump_h2o_def2tzvp():  # H2O restricted
     dump_all("h2o_def2tzvp", kwargs, spec="gen")
     dump_all("h2o_def2tzvp", kwargs, spec="cvs")
 
-    kwargs["remp_conv_tol"] = 1e-15
-    dump_method("h2o_def2tzvp", "adc0", kwargs, spec="re")
-    dump_method("h2o_def2tzvp", "adc1", kwargs, spec="re")
-    dump_method("h2o_def2tzvp", "adc2", kwargs, spec="re")
+    kwargs["re_conv_tol"] = 1e-15
+    dump_all("h2o_def2tzvp", kwargs, spec="re")
 
 
 def dump_cn_sto3g():  # CN unrestricted
@@ -153,10 +149,8 @@ def dump_cn_sto3g():  # CN unrestricted
     dump_method(case, "adc2x", {"n_states": 4, "n_guess_singles": 8}, spec="fv")
     dump_method(case, "adc2x", {"n_states": 4}, spec="fv-cvs")
 
-    kwargs = {"n_states": 8, "n_guess_singles": 10, "remp_conv_tol": 1e-15}
-    dump_method(case, "adc0", kwargs, spec="re")
-    dump_method(case, "adc1", kwargs, spec="re")
-    dump_method(case, "adc2", kwargs, spec="re")
+    kwargs = {"n_states": 8, "n_guess_singles": 10, "re_conv_tol": 1e-15}
+    dump_all("cn_sto3g", kwargs, spec="re")
 
 
 def dump_cn_ccpvdz():  # CN unrestricted
@@ -165,12 +159,9 @@ def dump_cn_ccpvdz():  # CN unrestricted
     dump_all("cn_ccpvdz", kwargs, overwrite, spec="gen")
     dump_all("cn_ccpvdz", kwargs, spec="cvs")
 
-    kwargs["remp_conv_tol"] = 1e-15
-    dump_method("cn_ccpvdz", "adc0", kwargs, spec="re")
-    dump_method("cn_ccpvdz", "adc2", kwargs, spec="re")
-    kwargs["n_states"] = 4
-    kwargs["n_guess_singles"] = 8
-    dump_method("cn_ccpvdz", "adc1", kwargs, spec="re")
+    kwargs["re_conv_tol"] = 1e-15
+    overwrite["adc1"]["re_conv_tol"] = 1e-15
+    dump_all("cn_ccpvdz", kwargs, overwrite, spec="re")
 
 
 def dump_hf3_631g():  # HF triplet unrestricted (spin-flip)
