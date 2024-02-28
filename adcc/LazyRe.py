@@ -103,8 +103,8 @@ class LazyRe(LazyMp):
         )
         rhs = AmplitudeVector(ph=rhs)
 
-        # zero guess leads to instant convergence for canonical orbitals
-        guess = hf.fov.zeros_like()
+        # zero guess leads to division by zero for small systems
+        guess = hf.fov.ones_like() * 1e-6
         guess = AmplitudeVector(ph=guess)
 
         print("\nIterating Second order RE singles amplitudes...")
