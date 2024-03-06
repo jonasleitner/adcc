@@ -7,16 +7,15 @@ from .AdcMatrix import AdcMatrixlike
 
 
 class LazyRe(LazyMp):
-    def __init__(self, hf, re_conv_tol=None):
+    def __init__(self, hf, re_conv_tol=None, re_max_iter=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
         """
-        # TODO: What is a good default value for the convergence tolerance?
-        # excitation energies seem to be insensitive to the convergence tolerance
-        # as even a tolerance of 1e-5 only introduces a error of 1e-6eV for
-        # H2O cc-pvtz.
         if re_conv_tol is None:
             re_conv_tol = hf.conv_tol
         self.re_conv_tol = re_conv_tol
+        if re_max_iter is None:
+            re_max_iter = 100
+        self.re_max_iter = re_max_iter
         super().__init__(hf)
 
     @cached_member_function
@@ -49,6 +48,7 @@ class LazyRe(LazyMp):
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
                                 conv_tol=self.re_conv_tol,
+                                max_iter=self.re_max_iter,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -78,6 +78,7 @@ class LazyRe(LazyMp):
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
                                 conv_tol=self.re_conv_tol,
+                                max_iter=self.re_max_iter,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -111,6 +112,7 @@ class LazyRe(LazyMp):
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
                                 conv_tol=self.re_conv_tol,
+                                max_iter=self.re_max_iter,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -144,6 +146,7 @@ class LazyRe(LazyMp):
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
                                 conv_tol=self.re_conv_tol,
+                                max_iter=self.re_max_iter,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -237,8 +240,8 @@ class Doubles(ReAmplitude):
 
     def diagonal(self):
         hf = self.reference_state
-        # NOTE: only terms containing the Fock matrix have been considered
-        # for a canonical orbital basis, the diagonal is defined by the
+        # NOTE: only terms containing the Fock matrix have been considered.
+        # For a canonical orbital basis, the diagonal is defined by the
         # usual orbital energy difference.
         diag = direct_sum("+i+j-a-b->ijab",
                           hf.foo.diagonal(), hf.foo.diagonal(),

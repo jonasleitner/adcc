@@ -47,7 +47,7 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
             n_guesses_doubles=None, output=sys.stdout, core_orbitals=None,
             frozen_core=None, frozen_virtual=None, method=None,
             n_singlets=None, n_triplets=None, n_spin_flip=None,
-            re_conv_tol=None, environment=None, **solverargs):
+            re_conv_tol=None, re_max_iter=None, environment=None, **solverargs):
     """Run an ADC calculation.
 
     Main entry point to run an ADC calculation. The reference to build the ADC
@@ -133,6 +133,10 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
         Convergence tolerance to employ in the iterative solver for obtaining
         the RE ground state amplitudes (default: SCF tolerance)
 
+    re_max_iter : int, optional
+        Maximum number of iterations for the RE ground state amplitudes
+        (default: 100).
+
     environment : bool or list or dict, optional
         The keywords to specify how coupling to an environment model,
         e.g. PE, is treated. For details see :ref:`environment`.
@@ -182,7 +186,8 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
     """
     matrix = construct_adcmatrix(
         data_or_matrix, core_orbitals=core_orbitals, frozen_core=frozen_core,
-        frozen_virtual=frozen_virtual, method=method, re_conv_tol=re_conv_tol)
+        frozen_virtual=frozen_virtual, method=method, re_conv_tol=re_conv_tol,
+        re_max_iter=re_max_iter)
 
     n_states, kind = validate_state_parameters(
         matrix.reference_state, n_states=n_states, n_singlets=n_singlets,
@@ -223,7 +228,8 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
 # Individual steps
 #
 def construct_adcmatrix(data_or_matrix, core_orbitals=None, frozen_core=None,
-                        frozen_virtual=None, method=None, re_conv_tol=None):
+                        frozen_virtual=None, method=None, re_conv_tol=None,
+                        re_max_iter=None):
     """
     Use the provided data or AdcMatrix object to check consistency of the
     other passed parameters and construct the AdcMatrix object representing
@@ -275,7 +281,8 @@ def construct_adcmatrix(data_or_matrix, core_orbitals=None, frozen_core=None,
     # Make AdcMatrix (if not done)
     if isinstance(data_or_matrix, (ReferenceState, LazyMp)):
         try:
-            return AdcMatrix(method, data_or_matrix, re_conv_tol=re_conv_tol)
+            return AdcMatrix(method, data_or_matrix, re_conv_tol=re_conv_tol,
+                             re_max_iter=re_max_iter)
         except ValueError as e:
             # In case of an issue with CVS <-> chosen spaces
             raise InputError(str(e))

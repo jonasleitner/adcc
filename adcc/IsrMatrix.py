@@ -44,7 +44,7 @@ class IsrMatrix(AdcMatrixlike):
     }
 
     def __init__(self, method, hf_or_mp, operator, block_orders=None,
-                 re_conv_tol=None):
+                 re_conv_tol=None, re_max_iter=None):
         """
         Initialise an ISR matrix of a given one-particle operator
         for the provided ADC method.
@@ -64,6 +64,9 @@ class IsrMatrix(AdcMatrixlike):
         re_conv_tol : float, optional
             Convergence tolerance for the RE ground state amplitudes
             (default: SCF tolerance).
+        re_max_iter : int, optional
+            Maximum number of iterations for the RE ground state amplitudes
+            (default: 100).
         """
         if not isinstance(method, AdcMethod):
             method = AdcMethod(method)
@@ -71,7 +74,8 @@ class IsrMatrix(AdcMatrixlike):
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
             if method.is_re:
-                hf_or_mp = LazyRe(hf_or_mp, re_conv_tol=re_conv_tol)
+                hf_or_mp = LazyRe(hf_or_mp, re_conv_tol=re_conv_tol,
+                                  re_max_iter=re_max_iter)
             else:
                 hf_or_mp = LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):

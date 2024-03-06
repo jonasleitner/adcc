@@ -84,7 +84,7 @@ class AdcMatrix(AdcMatrixlike):
     }
 
     def __init__(self, method, hf_or_mp, block_orders=None, intermediates=None,
-                 diagonal_precomputed=None, re_conv_tol=None):
+                 diagonal_precomputed=None, re_conv_tol=None, re_max_iter=None):
         """
         Initialise an ADC matrix.
 
@@ -104,6 +104,9 @@ class AdcMatrix(AdcMatrixlike):
         re_conv_tol : float, optional
             Convergence tolerance for the RE ground state amplitudes
             (default: SCF tolerance).
+        re_max_iter : int, optional
+            Maximum number of iterations for the RE ground state amplitudes
+            (default: 100).
         """
         # can't import on top -> circular import
         from .LazyRe import LazyRe
@@ -111,16 +114,10 @@ class AdcMatrix(AdcMatrixlike):
         if not isinstance(method, AdcMethod):
             method = AdcMethod(method)
 
-        if method.name == "re-adc2x":
-            # first order contribution to the DD block is zero!
-            warnings.warn("The secular matrix of RE-ADC(2)x and RE-ADC(2) are the "
-                          "same. Therefore, identical results are expected for "
-                          "both methods.")
-
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
             if method.is_re:
-                hf_or_mp = LazyRe(hf_or_mp, re_conv_tol)
+                hf_or_mp = LazyRe(hf_or_mp, re_conv_tol, re_max_iter)
             else:
                 hf_or_mp = LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, LazyMp):
