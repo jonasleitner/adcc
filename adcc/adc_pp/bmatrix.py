@@ -178,7 +178,7 @@ def block_ph_ph_2(ground_state, op):
         op_vo = op.ov.transpose()
     else:
         op_vo = op.vo
-    p0 = ground_state.mp2_diffdm
+    p0 = ground_state.diffdm(2)
     t2 = ground_state.t2(b.oovv)
 
     def apply(ampl):

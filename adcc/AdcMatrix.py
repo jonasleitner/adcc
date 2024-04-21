@@ -24,6 +24,7 @@ import libadcc
 import warnings
 import numpy as np
 
+from .GroundState import GroundState
 from .LazyMp import LazyMp
 from .adc_pp import matrix as ppmatrix
 from .timings import Timer, timed_member_call
@@ -92,7 +93,7 @@ class AdcMatrix(AdcMatrixlike):
         ----------
         method : str or AdcMethod
             Method to use.
-        hf_or_mp : adcc.ReferenceState or adcc.LazyMp
+        hf_or_mp : adcc.ReferenceState or adcc.GroundState
             HF reference or MP ground state
         block_orders : optional
             The order of perturbation theory to employ for each matrix block.
@@ -108,7 +109,7 @@ class AdcMatrix(AdcMatrixlike):
             Maximum number of iterations for the RE ground state amplitudes
             (default: 100).
         """
-        # can't import on top -> circular import
+        # circular import -> can't import on top
         from .LazyRe import LazyRe
 
         if not isinstance(method, AdcMethod):
@@ -120,9 +121,9 @@ class AdcMatrix(AdcMatrixlike):
                 hf_or_mp = LazyRe(hf_or_mp, re_conv_tol, re_max_iter)
             else:
                 hf_or_mp = LazyMp(hf_or_mp)
-        if not isinstance(hf_or_mp, LazyMp):
+        if not isinstance(hf_or_mp, GroundState):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
-                            "either a LazyMp, a ReferenceState or a "
+                            "either a GroundState, a ReferenceState or a "
                             "HartreeFockSolution_i.")
 
         if diagonal_precomputed:

@@ -23,7 +23,7 @@
 from math import sqrt
 
 from adcc import block as b
-from adcc.LazyMp import LazyMp
+from adcc.GroundState import GroundState
 from adcc.AdcMethod import AdcMethod
 from adcc.functions import einsum
 from adcc.Intermediates import Intermediates
@@ -81,7 +81,7 @@ def tdm_adc2(mp, amplitude, intermediates):
 
     t2 = mp.t2(b.oovv)
     td2 = mp.td2(b.oovv)
-    p0 = mp.mp2_diffdm
+    p0 = mp.diffdm(2)
 
     # Compute ADC(2) tdm
     dm.oo = (  # adc2_dp0_oo
@@ -111,7 +111,7 @@ def tdm_re_adc2(re, amplitude, intermediates):
     u2 = amplitude.pphh
 
     t2 = re.t2(b.oovv)
-    p0 = re.mp2_diffdm
+    p0 = re.diffdm(2)
 
     # Compute ADC(2) tdm
     dm.oo = (  # adc2_dp0_oo
@@ -156,7 +156,7 @@ def transition_dm(method, ground_state, amplitude, intermediates=None):
     ----------
     method : str, AdcMethod
         The method to use for the computation (e.g. "adc2")
-    ground_state : LazyMp
+    ground_state : GroundState
         The ground state upon which the excitation was based
     amplitude : AmplitudeVector
         The amplitude vector
@@ -165,8 +165,8 @@ def transition_dm(method, ground_state, amplitude, intermediates=None):
     """
     if not isinstance(method, AdcMethod):
         method = AdcMethod(method)
-    if not isinstance(ground_state, LazyMp):
-        raise TypeError("ground_state should be a LazyMp object.")
+    if not isinstance(ground_state, GroundState):
+        raise TypeError("ground_state should be a GroundState object.")
     if not isinstance(amplitude, AmplitudeVector):
         raise TypeError("amplitude should be an AmplitudeVector object.")
     if intermediates is None:

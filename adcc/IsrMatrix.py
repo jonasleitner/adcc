@@ -23,6 +23,7 @@
 import libadcc
 
 from .AdcMatrix import AdcMatrixlike
+from .GroundState import GroundState
 from .LazyMp import LazyMp
 from .LazyRe import LazyRe
 from .adc_pp import bmatrix as ppbmatrix
@@ -53,7 +54,7 @@ class IsrMatrix(AdcMatrixlike):
         ----------
         method : str or adcc.AdcMethod
             Method to use.
-        hf_or_mp : adcc.ReferenceState or adcc.LazyMp
+        hf_or_mp : adcc.ReferenceState or adcc.GroundState
             HF reference or MP ground state.
         operator : adcc.OneParticleOperator or list of adcc.OneParticleOperator
                     objects
@@ -78,9 +79,9 @@ class IsrMatrix(AdcMatrixlike):
                                   re_max_iter=re_max_iter)
             else:
                 hf_or_mp = LazyMp(hf_or_mp)
-        if not isinstance(hf_or_mp, LazyMp):
+        if not isinstance(hf_or_mp, GroundState):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
-                            "either a LazyMp, a ReferenceState or a "
+                            "either a Groundstate, a ReferenceState or a "
                             "HartreeFockSolution_i.")
 
         if not isinstance(operator, list):

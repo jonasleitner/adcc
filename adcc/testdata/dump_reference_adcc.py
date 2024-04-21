@@ -95,10 +95,10 @@ def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
 
     for block in ["dm_o1o1", "dm_o1v1", "dm_v1v1", "dm_o2o1", "dm_o2o2", "dm_o2v1"]:
         blk = block.split("_")[-1]
-        if blk in ground_state.mp2_diffdm.blocks:
+        if blk in ground_state.diffdm(2).blocks:
             mp.create_dataset(f"{gs}2/" + block, compression=8,
-                              data=ground_state.mp2_diffdm[blk].to_ndarray())
-    dm_bb_a, dm_bb_b = ground_state.mp2_diffdm.to_ao_basis(
+                              data=ground_state.diffdm(2)[blk].to_ndarray())
+    dm_bb_a, dm_bb_b = ground_state.diffdm(2).to_ao_basis(
         ground_state.reference_state
     )
     mp.create_dataset(f"{gs}2/dm_bb_a", compression=8, data=dm_bb_a.to_ndarray())

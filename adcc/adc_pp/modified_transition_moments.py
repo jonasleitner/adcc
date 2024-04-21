@@ -23,7 +23,7 @@
 from math import sqrt
 
 from adcc import block as b
-from adcc.LazyMp import LazyMp
+from adcc.GroundState import GroundState
 from adcc.AdcMethod import AdcMethod
 from adcc.functions import einsum, evaluate
 from adcc.Intermediates import Intermediates
@@ -43,7 +43,7 @@ def mtm_adc1(mp, op, intermediates):
 
 def mtm_adc2(mp, op, intermediates):
     t2 = mp.t2(b.oovv)
-    p0 = mp.mp2_diffdm
+    p0 = mp.diffdm(2)
 
     op_vo = op.ov.transpose() if op.is_symmetric else op.vo
 
@@ -83,7 +83,7 @@ def mtm_cvs_adc2(mp, op, intermediates):
 
 def mtm_re_adc2(mp, op, intermediates):
     t2 = mp.t2(b.oovv)
-    p0 = mp.mp2_diffdm
+    p0 = mp.diffdm(2)
 
     op_vo = op.ov.transpose() if op.is_symmetric else op.vo
 
@@ -124,7 +124,7 @@ def modified_transition_moments(method, ground_state, operator=None,
     ----------
     method: adc.Method
         Provide a method at which to compute the MTMs
-    ground_state : adcc.LazyMp
+    ground_state : adcc.GroundState
         The MP ground state
     operator : adcc.OneParticleOperator or list, optional
         Only required if different operators than the standard
@@ -138,8 +138,8 @@ def modified_transition_moments(method, ground_state, operator=None,
     """
     if not isinstance(method, AdcMethod):
         method = AdcMethod(method)
-    if not isinstance(ground_state, LazyMp):
-        raise TypeError("ground_state should be a LazyMp object.")
+    if not isinstance(ground_state, GroundState):
+        raise TypeError("ground_state should be a GroundState object.")
     if intermediates is None:
         intermediates = Intermediates(ground_state)
 

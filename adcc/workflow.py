@@ -28,7 +28,7 @@ from libadcc import ReferenceState
 from . import solver
 from .guess import (guesses_any, guesses_singlet, guesses_spin_flip,
                     guesses_triplet)
-from .LazyMp import LazyMp
+from .GroundState import GroundState
 from .AdcMatrix import AdcMatrix, AdcMatrixlike, AdcExtraTerm
 from .AdcMethod import AdcMethod
 from .exceptions import InputError
@@ -60,7 +60,7 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
            objects mentioned in (b) to (d) will be implicitly created and will
            become available in the returned state.
         b. A :py:class:`adcc.ReferenceState` object
-        c. A :py:class:`adcc.LazyMp` object
+        c. A :py:class:`adcc.GroundState` object
         d. A :py:class:`adcc.AdcMatrix` object
 
     Parameters
@@ -152,7 +152,7 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
     -------
     ExcitedStates
         An :class:`adcc.ExcitedStates` object containing the
-        :class:`adcc.AdcMatrix`, the :class:`adcc.LazyMp` ground state and the
+        :class:`adcc.AdcMatrix`, the :class:`adcc.GroundState` ground state and the
         :class:`adcc.ReferenceState` as well as computed eigenpairs.
 
     Examples
@@ -245,7 +245,7 @@ def construct_adcmatrix(data_or_matrix, core_orbitals=None, frozen_core=None,
         except ValueError as e:
             raise InputError(str(e))  # In case the method is unknown
 
-    if not isinstance(data_or_matrix, (ReferenceState, AdcMatrixlike, LazyMp)):
+    if not isinstance(data_or_matrix, (ReferenceState, AdcMatrixlike, GroundState)):
         if method.is_core_valence_separated and core_orbitals is None:
             raise InputError("If core-valence separation approximation is "
                              "applied then the number of core orbitals needs "
@@ -262,24 +262,24 @@ def construct_adcmatrix(data_or_matrix, core_orbitals=None, frozen_core=None,
     elif core_orbitals is not None:
         mospaces = data_or_matrix.mospaces
         warnings.warn("Ignored core_orbitals parameter because data_or_matrix"
-                      " is a ReferenceState, a LazyMp or an AdcMatrixlike object "
-                      " (which has a value of core_orbitals={})."
+                      " is a ReferenceState, a GroundState or an AdcMatrixlike "
+                      "object (which has a value of core_orbitals={})."
                       "".format(mospaces.n_orbs_alpha("o2")))
     elif frozen_core is not None:
         mospaces = data_or_matrix.mospaces
         warnings.warn("Ignored frozen_core parameter because data_or_matrix"
-                      " is a ReferenceState, a LazyMp or an AdcMatrixlike object "
-                      " (which has a value of frozen_core={})."
+                      " is a ReferenceState, a GroundState or an AdcMatrixlike "
+                      "object (which has a value of frozen_core={})."
                       "".format(mospaces.n_orbs_alpha("o3")))
     elif frozen_virtual is not None:
         mospaces = data_or_matrix.mospaces
         warnings.warn("Ignored frozen_virtual parameter because data_or_matrix"
-                      " is a ReferenceState, a LazyMp or an AdcMatrixlike object "
-                      " (which has a value of frozen_virtual={})."
+                      " is a ReferenceState, a GroundState or an AdcMatrixlike "
+                      "object (which has a value of frozen_virtual={})."
                       "".format(mospaces.n_orbs_alpha("v2")))
 
     # Make AdcMatrix (if not done)
-    if isinstance(data_or_matrix, (ReferenceState, LazyMp)):
+    if isinstance(data_or_matrix, (ReferenceState, GroundState)):
         try:
             return AdcMatrix(method, data_or_matrix, re_conv_tol=re_conv_tol,
                              re_max_iter=re_max_iter)

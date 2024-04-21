@@ -100,7 +100,7 @@ class TestLazyMp(unittest.TestCase):
         for label in ["o1o1", "o1v1", "v1v1"]:
             assert_allclose(mp2diff[label].to_ndarray(),
                             refmp["mp2"]["dm_" + label], atol=1e-12)
-        assert "mp2_diffdm" in self.mp[case].timer.tasks
+        assert "second_order_diffdm" in self.mp[case].timer.tasks
 
     def template_mp2_density_ao(self, case):
         refmp = cache.reference_data[case]["mp"]

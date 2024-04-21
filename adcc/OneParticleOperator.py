@@ -39,7 +39,7 @@ class OneParticleOperator:
 
         Parameters
         ----------
-        spaces : adcc.MoSpaces or adcc.ReferenceState or adcc.LazyMp
+        spaces : adcc.MoSpaces or adcc.ReferenceState or adcc.GroundState
             MoSpaces object
 
         is_symmetric : bool

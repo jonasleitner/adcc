@@ -87,21 +87,21 @@ class TestLazyRe(unittest.TestCase):
         #                 ref_data["re2"]["td_o1o1v1v1"], atol=1e-12)
 
     def template_re2_density_mo(self, case):
-        mp2diff = self.re[case].mp2_diffdm
+        re2diff = self.re[case].re2_diffdm
         ref_data = cache.adcc_reference_data[case]["re"]
 
-        assert mp2diff.is_symmetric
+        assert re2diff.is_symmetric
         for label in ["o1o1", "o1v1", "v1v1"]:
-            assert_allclose(mp2diff[label].to_ndarray(),
+            assert_allclose(re2diff[label].to_ndarray(),
                             ref_data["re2"]["dm_" + label], atol=1e-12)
-        assert "mp2_diffdm" in self.re[case].timer.tasks
+        assert "second_order_diffdm" in self.re[case].timer.tasks
 
     def template_re2_density_ao(self, case):
-        mp2diff = self.re[case].mp2_diffdm
+        re2diff = self.re[case].re2_diffdm
         ref_data = cache.adcc_reference_data[case]["re"]
         reference_state = self.re[case].reference_state
 
-        dm_α, dm_β = mp2diff.to_ao_basis(reference_state)
+        dm_α, dm_β = re2diff.to_ao_basis(reference_state)
         assert_allclose(dm_α.to_ndarray(), ref_data["re2"]["dm_bb_a"], atol=1e-12)
         assert_allclose(dm_β.to_ndarray(), ref_data["re2"]["dm_bb_b"], atol=1e-12)
 

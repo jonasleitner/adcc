@@ -52,7 +52,7 @@ class Tensor(libadcc.Tensor):
         Notes
         -----
         An :class:`MoSpaces` object is contained in many datastructures
-        of adcc, including the :class:`AdcMatrix`, the :class:`LazyMp`,
+        of adcc, including the :class:`AdcMatrix`, the :class:`GroundState`,
         the :class:`ReferenceState` and any solver or ADC results state.
 
         Examples

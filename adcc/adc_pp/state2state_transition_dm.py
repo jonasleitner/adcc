@@ -21,7 +21,7 @@
 ##
 ## ---------------------------------------------------------------------
 from adcc import block as b
-from adcc.LazyMp import LazyMp
+from adcc.GroundState import GroundState
 from adcc.AdcMethod import AdcMethod
 from adcc.functions import einsum
 from adcc.Intermediates import Intermediates
@@ -50,7 +50,7 @@ def s2s_tdm_adc2(mp, amplitude_l, amplitude_r, intermediates):
     ur1, ur2 = amplitude_r.ph, amplitude_r.pphh
 
     t2 = mp.t2(b.oovv)
-    p0 = mp.mp2_diffdm
+    p0 = mp.diffdm(2)
     p1_oo = dm.oo.evaluate()  # ADC(1) tdm
     p1_vv = dm.vv.evaluate()  # ADC(1) tdm
 
@@ -123,7 +123,7 @@ def state2state_transition_dm(method, ground_state, amplitude_from,
     ----------
     method : str, AdcMethod
         The method to use for the computation (e.g. "adc2")
-    ground_state : LazyMp
+    ground_state : GroundState
         The ground state upon which the excitation was based
     amplitude_from : AmplitudeVector
         The amplitude vector of the state to start from
@@ -134,8 +134,8 @@ def state2state_transition_dm(method, ground_state, amplitude_from,
     """
     if not isinstance(method, AdcMethod):
         method = AdcMethod(method)
-    if not isinstance(ground_state, LazyMp):
-        raise TypeError("ground_state should be a LazyMp object.")
+    if not isinstance(ground_state, GroundState):
+        raise TypeError("ground_state should be a GroundState object.")
     if not isinstance(amplitude_from, AmplitudeVector):
         raise TypeError("amplitude_from should be an AmplitudeVector object.")
     if not isinstance(amplitude_to, AmplitudeVector):

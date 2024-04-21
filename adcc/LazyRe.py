@@ -1,12 +1,34 @@
-from .LazyMp import LazyMp
-from . import block as b
-from .functions import einsum, direct_sum
-from .misc import cached_member_function
-from .AmplitudeVector import AmplitudeVector
+#!/usr/bin/env python3
+## vi: tabstop=4 shiftwidth=4 softtabstop=4 expandtab
+## ---------------------------------------------------------------------
+##
+## Copyright (C) 2019 by the adcc authors
+##
+## This file is part of adcc.
+##
+## adcc is free software: you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published
+## by the Free Software Foundation, either version 3 of the License, or
+## (at your option) any later version.
+##
+## adcc is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+##
+## You should have received a copy of the GNU General Public License
+## along with adcc. If not, see <http://www.gnu.org/licenses/>.
+##
+## ---------------------------------------------------------------------
 from .AdcMatrix import AdcMatrixlike
+from .AmplitudeVector import AmplitudeVector
+from .functions import direct_sum, einsum
+from .GroundState import GroundState
+from .misc import cached_member_function
+from . import block as b
 
 
-class LazyRe(LazyMp):
+class LazyRe(GroundState):
     def __init__(self, hf, re_conv_tol=None, re_max_iter=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
         """
@@ -56,9 +78,9 @@ class LazyRe(LazyMp):
     @cached_member_function
     def t2(self, space):
         """First order RE ground state doubles amplitudes."""
-        # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
+        from .LazyMp import LazyMp
 
         if space != b.oovv:
             raise NotImplementedError("First order doubles not implemented for "
@@ -71,7 +93,7 @@ class LazyRe(LazyMp):
 
         # build a guess for the t-amplitudes: use mp-amplitudes as they only
         # scale N^4, while each iteration scales as N^6
-        guess = super().t2(space)
+        guess = LazyMp(self.reference_state).t2(space)
         guess = AmplitudeVector(pphh=guess)
 
         print("\nIterating first order RE doubles amplitudes...")
@@ -86,7 +108,6 @@ class LazyRe(LazyMp):
     @cached_member_function
     def ts2(self, space):
         """Second order RE ground state singles amplitudes"""
-        # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
 
@@ -151,10 +172,6 @@ class LazyRe(LazyMp):
         t2 = t2.solution.pphh
         return t2
 
-    @property
-    def re2_diffdm(self):
-        return super().mp2_diffdm
-
     @cached_member_function
     def energy_correction(self, level=2):
         """Obtain the RE energy correction at a particular level"""
@@ -171,16 +188,31 @@ class LazyRe(LazyMp):
             # vanishes, since the td2 tensor is zero
             return 0.0
 
-    @cached_member_function
     def energy(self, level=2):
-        """Obtain the total energy (SCF energy plus all corrections)
-           at a particular level of perturbation theory.
         """
-        # We already have in 0th order the HF energy for RE
+        Obtain the total RE energy (SCF energy plus all corrections)
+        at a particular level of perturbation theory.
+        """
+        # 0th order: SCF; 1st order: zero
         energies = [self.reference_state.energy_scf]
-        for order in range(2, level + 1):
-            energies.append(self.energy_correction(order))
+        for il in range(2, level + 1):
+            energies.append(self.energy_correction(il))
         return sum(energies)
+
+    def to_qcvars(self, properties=False, recurse=False, maxlevel=2):
+        """
+        Return a dictionary with property keys compatible to a Psi4 wavefunction
+        or a QCEngine Atomicresults object.
+        """
+        return self._to_qcvars(properties=properties, recurse=recurse,
+                               maxlevel=maxlevel, method="RE")
+
+    @property
+    def re2_diffdm(self):
+        """
+        Return the RE2 difference density in the MO basis.
+        """
+        return self.diffdm(2)
 
     @property
     def re2_density(self):
@@ -188,7 +220,7 @@ class LazyRe(LazyMp):
 
     @property
     def re2_dipole_moment(self):
-        return super().mp2_dipole_moment
+        return self.second_order_dipole_moment
 
 
 class ReAmplitude(AdcMatrixlike):
