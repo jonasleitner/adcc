@@ -150,9 +150,10 @@ class LazyRe(GroundState):
         # can't import on top -> circular import
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
+        from .LazyMp import LazyMp
 
         if space != b.oovv:
-            raise NotImplementedError("First order doubles not implemented for "
+            raise NotImplementedError("Second order doubles not implemented for "
                                       f"space {space}.")
         hf = self.reference_state
         # build the right hand side of Ax = b
@@ -160,7 +161,7 @@ class LazyRe(GroundState):
         rhs = AmplitudeVector(pphh=rhs)
         # build a guess for the t-amplitudes: use mp-amplitudes as they
         # scale N^6 just as the iteration scheme
-        guess = super().td2(space)
+        guess = LazyMp(self.reference_state).td2(space)
         guess = AmplitudeVector(pphh=guess)
 
         print("\nIterating Second order RE doubles amplitudes...")

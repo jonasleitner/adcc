@@ -137,8 +137,8 @@ class GroundState:
         ret.ov = self.ts2(b.ov)
         ret.vv = 0.5 * einsum("ijac,ijbc->ab", self.t2oo, self.t2oo)
 
-        hf = self.reference_state
         if self.has_core_occupied_space:
+            hf = self.reference_state
             # additional terms to "revert" CVS for ground state density
             ret.oo += -0.5 * einsum("iLab,jLab->ij", self.t2oc, self.t2oc)
             ret.ov += -0.5 * (
