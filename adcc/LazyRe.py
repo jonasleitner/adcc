@@ -110,6 +110,7 @@ class LazyRe(GroundState):
         """Second order RE ground state singles amplitudes"""
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
+        from .LazyMp import LazyMp
 
         if space != b.ov:
             raise NotImplementedError("Second order singles not implemented for "
@@ -118,15 +119,14 @@ class LazyRe(GroundState):
         t2_1 = self.t2(b.oovv)
         rhs = (
             # N^5: O^2V^3 / N^4: O^1V^3
-            + 0.5 * einsum('jabc,ijbc->ia', hf.ovvv, t2_1)
+            - 0.5 * einsum('jabc,ijbc->ia', hf.ovvv, t2_1)
             # N^5: O^3V^2 / N^4: O^2V^2
-            + 0.5 * einsum('jkib,jkab->ia', hf.ooov, t2_1)
-            - 1 * einsum('jb,ijab->ia', hf.fov, t2_1)  # N^4: O^2V^2 / N^4: O^2V^2
+            - 0.5 * einsum('jkib,jkab->ia', hf.ooov, t2_1)
         )
         rhs = AmplitudeVector(ph=rhs)
 
-        # zero guess leads to division by zero for small systems
-        guess = hf.fov.ones_like() * 1e-6
+        # can use MP amplitudes as guess, since the rhs scales N^5 anyway
+        guess = LazyMp(self.reference_state).ts2(space)
         guess = AmplitudeVector(ph=guess)
 
         print("\nIterating Second order RE singles amplitudes...")
@@ -244,9 +244,9 @@ class Singles(ReAmplitude):
         if isinstance(vec, list):
             return [self.__matmul__(v) for v in vec]
         hf = self.reference_state
-        t1 = (einsum('ab,ib->ia', hf.fvv, vec.ph)
-              - einsum('ij,ja->ia', hf.foo, vec.ph)
-              - einsum('ibja,jb->ia', hf.ovov, vec.ph))
+        t1 = (einsum('ab,ib->ia', hf.fvv, vec.ph)  # N^3
+              - einsum('ij,ja->ia', hf.foo, vec.ph)  # N^3
+              - einsum('ibja,jb->ia', hf.ovov, vec.ph))  # N^4
         return AmplitudeVector(ph=t1)
 
     def diagonal(self):
