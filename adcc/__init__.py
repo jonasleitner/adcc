@@ -27,6 +27,7 @@ from libadcc import HartreeFockProvider, get_n_threads, set_n_threads
 from .GroundState import GroundState
 from .LazyMp import LazyMp
 from .LazyRe import LazyRe
+from .LazyReMp import LazyReMp
 from .Tensor import Tensor
 from .Symmetry import Symmetry
 from .MoSpaces import MoSpaces
@@ -63,7 +64,7 @@ __all__ = ["run_adc", "InputError", "AdcMatrix", "AdcBlockView",
            "DataHfProvider", "OneParticleOperator",
            "guesses_singlet", "guesses_triplet", "guesses_any",
            "guess_symmetries", "guesses_spin_flip", "guess_zero",
-           "LazyMp", "LazyRe", "GroundState",
+           "LazyMp", "LazyRe", "LazyReMp", "GroundState",
            "adc0", "cis", "adc1", "adc2", "adc2x", "adc3",
            "cvs_adc0", "cvs_adc1", "cvs_adc2", "cvs_adc2x", "cvs_adc3",
            "banner"]
