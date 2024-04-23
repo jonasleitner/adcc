@@ -75,8 +75,8 @@ class IsrMatrix(AdcMatrixlike):
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
             if method.is_re:
-                hf_or_mp = LazyRe(hf_or_mp, re_conv_tol=re_conv_tol,
-                                  re_max_iter=re_max_iter)
+                hf_or_mp = LazyRe(hf_or_mp, conv_tol=re_conv_tol,
+                                  max_iter=re_max_iter)
             else:
                 hf_or_mp = LazyMp(hf_or_mp)
         if not isinstance(hf_or_mp, GroundState):

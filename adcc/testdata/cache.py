@@ -38,7 +38,7 @@ class AdcMockState(EigenSolverStateBase):
 
 def make_mock_adc_state(refstate, matmethod, kind, reference):
     if "re" in matmethod:
-        ground_state = LazyRe(refstate, re_conv_tol=1e-15)
+        ground_state = LazyRe(refstate, conv_tol=1e-15)
     else:
         ground_state = LazyMp(refstate)
     matrix = AdcMatrix(matmethod, ground_state)

@@ -29,15 +29,15 @@ from . import block as b
 
 
 class LazyRe(GroundState):
-    def __init__(self, hf, re_conv_tol=None, re_max_iter=None):
+    def __init__(self, hf, conv_tol=None, max_iter=None):
         """Initialise the retaining the excitation degree (RE) ground state class.
         """
-        if re_conv_tol is None:
-            re_conv_tol = hf.conv_tol
-        self.re_conv_tol = re_conv_tol
-        if re_max_iter is None:
-            re_max_iter = 100
-        self.re_max_iter = re_max_iter
+        if conv_tol is None:
+            conv_tol = hf.conv_tol
+        self.conv_tol = conv_tol
+        if max_iter is None:
+            max_iter = 100
+        self.max_iter = max_iter
         super().__init__(hf)
 
     @cached_member_function
@@ -69,8 +69,8 @@ class LazyRe(GroundState):
         print("\nIterating first order RE singles amplitudes...")
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.re_conv_tol,
-                                max_iter=self.re_max_iter,
+                                conv_tol=self.conv_tol,
+                                max_iter=self.max_iter,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -99,8 +99,8 @@ class LazyRe(GroundState):
         print("\nIterating first order RE doubles amplitudes...")
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.re_conv_tol,
-                                max_iter=self.re_max_iter,
+                                conv_tol=self.conv_tol,
+                                max_iter=self.max_iter,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -132,8 +132,8 @@ class LazyRe(GroundState):
         print("\nIterating Second order RE singles amplitudes...")
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.re_conv_tol,
-                                max_iter=self.re_max_iter,
+                                conv_tol=self.conv_tol,
+                                max_iter=self.max_iter,
                                 Pinv=JacobiPreconditioner)
         t1 = t1.solution.ph
         return t1
@@ -167,8 +167,8 @@ class LazyRe(GroundState):
         print("\nIterating Second order RE doubles amplitudes...")
         t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
                                 explicit_symmetrisation=None,
-                                conv_tol=self.re_conv_tol,
-                                max_iter=self.re_max_iter,
+                                conv_tol=self.conv_tol,
+                                max_iter=self.max_iter,
                                 Pinv=JacobiPreconditioner)
         t2 = t2.solution.pphh
         return t2
@@ -176,18 +176,18 @@ class LazyRe(GroundState):
     @cached_member_function
     def energy_correction(self, level=2):
         """Obtain the RE energy correction at a particular level"""
-        if level > 3:
-            raise NotImplementedError(f"RE({level}) energy correction "
-                                      "not implemented.")
+        hf = self.reference_state
         if level < 2:
             return 0.0
-        hf = self.reference_state
-        if level == 2:
+        elif level == 2:
             return -0.25 * hf.oovv.dot(self.t2oo)
         elif level == 3:
             # for a block diagonal fock matrix the third order energy correction
             # vanishes, since the td2 tensor is zero
             return 0.0
+        else:
+            raise NotImplementedError(f"RE({level}) energy correction "
+                                      "not implemented.")
 
     def energy(self, level=2):
         """

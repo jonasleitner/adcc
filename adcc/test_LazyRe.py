@@ -44,7 +44,7 @@ class TestLazyRe(unittest.TestCase):
     def setUpClass(cls):
         cls.re = {}
         for case in testcases:
-            cls.re[case] = LazyRe(cache.refstate[case], re_conv_tol=1e-15)
+            cls.re[case] = LazyRe(cache.refstate[case], conv_tol=1e-15)
 
     def template_re2_energy(self, case):
         # 1) compare against the dumped psi4 reference data
@@ -57,7 +57,7 @@ class TestLazyRe(unittest.TestCase):
                 hf = run_psi4_scf(static_data.xyz[mol], basis)
 
             assert_allclose(hf.energy_scf, ref_data["energy_scf"], atol=1e-12)
-            re = LazyRe(hf, re_conv_tol=1e-15)
+            re = LazyRe(hf, conv_tol=1e-15)
             assert_allclose(re.energy(2), ref_data["energy_remp"], atol=1e-12)
             assert_allclose(re.energy(2), ref_data["remp_adcc_energy"], atol=1e-12)
 
