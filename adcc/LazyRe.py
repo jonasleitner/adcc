@@ -63,8 +63,8 @@ class LazyRe(GroundState):
 
         # can't use zero guess: divide by 0 in conjugate gradient for canonical
         # orbital basis -> i think random is better than one guess
-        guess = hf.fov.zeros_like()
-        guess = AmplitudeVector(ph=guess.set_random())
+        guess = hf.fov.zeros_like() * 1e-6
+        guess = AmplitudeVector(ph=guess)
 
         print("\nIterating first order RE singles amplitudes...")
         t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
@@ -251,7 +251,7 @@ class Singles(ReAmplitude):
 
     def diagonal(self):
         hf = self.reference_state
-        diag = direct_sum('+i-a->ia', hf.foo.diagonal(), hf.fvv.diagonal())
+        diag = direct_sum('-i+a->ia', hf.foo.diagonal(), hf.fvv.diagonal())
         return AmplitudeVector(ph=diag.evaluate())
 
 
