@@ -385,7 +385,6 @@ def block_re_ph_pphh_2(hf, re, intermediates):
         ur2 = ampl.pphh
         # The scaling comment is given as: [comp_scaling] / [mem_scaling]
         return AmplitudeVector(ph=(
-            # + einsum("ijbc,jabc->ia", ampl.pphh, hf.ovvv)
             # 2nd order
             + 1 * einsum('icad,cd->ia', hf.ovvv,  # N^5: O^2V^3 / N^4: O^1V^3
                          einsum('jkbc,jkbd->cd', ur2, t2_1))
@@ -634,7 +633,10 @@ def re_adc3_m11(hf, re, intermediates):
     d_vv.set_mask("aa", 1.0)
 
     return (
-        intermediates.re_adc2_m11
+        # evaluate the 0th, 1st and 2nd order contributions on the fly
+        # avoids caching of the re_adc2_m11 intermediate, which should not be
+        # required for a re-adc3 calculation
+        re_adc2_m11(hf, re, intermediates)
         + 2 * (
             # N^5: O^2V^3 / N^4: O^1V^3
             + 1 * einsum('ibac,jc->iajb', hf.ovvv, t1_2)
@@ -644,8 +646,8 @@ def re_adc3_m11(hf, re, intermediates):
                          einsum('kabc,kc->ab', hf.ovvv, t1_2))
             - 1 * einsum('ab,ij->iajb', d_vv,  # N^4: O^2V^2 / N^4: O^2V^2
                          einsum('ikjc,kc->ij', hf.ooov, t1_2))
-        )
-    ).symmetrise((0, 2), (1, 3))
+        ).symmetrise((0, 2), (1, 3))
+    )
 
 
 def adc3_i1(hf, mp, intermediates):
