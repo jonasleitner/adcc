@@ -85,7 +85,7 @@ class AdcMatrix(AdcMatrixlike):
     }
 
     def __init__(self, method, hf_or_mp, block_orders=None, intermediates=None,
-                 diagonal_precomputed=None, re_conv_tol=None, re_max_iter=None):
+                 diagonal_precomputed=None, gs_conv_tol=None, gs_max_iter=None):
         """
         Initialise an ADC matrix.
 
@@ -102,10 +102,10 @@ class AdcMatrix(AdcMatrixlike):
             Allows to pass intermediates to re-use to this class.
         diagonal_precomputed: adcc.AmplitudeVector
             Allows to pass a pre-computed diagonal, for internal use only.
-        re_conv_tol : float, optional
+        gs_conv_tol : float, optional
             Convergence tolerance for the RE ground state amplitudes
             (default: SCF tolerance).
-        re_max_iter : int, optional
+        gs_max_iter : int, optional
             Maximum number of iterations for the RE ground state amplitudes
             (default: 100).
         """
@@ -117,11 +117,13 @@ class AdcMatrix(AdcMatrixlike):
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            if method.is_re:
-                hf_or_mp = LazyRe(hf_or_mp, conv_tol=re_conv_tol,
-                                  max_iter=re_max_iter)
-            else:
+            if method.gs_type == "mp":
                 hf_or_mp = LazyMp(hf_or_mp)
+            elif method.gs_type == "re":
+                hf_or_mp = LazyRe(hf_or_mp, conv_tol=gs_conv_tol,
+                                  max_iter=gs_max_iter)
+            else:
+                raise ValueError(f"Unknown ground state type {method.gs_type}.")
         if not isinstance(hf_or_mp, GroundState):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a GroundState, a ReferenceState or a "
@@ -141,7 +143,7 @@ class AdcMatrix(AdcMatrixlike):
         self.reference_state = hf_or_mp.reference_state
         self.mospaces = hf_or_mp.reference_state.mospaces
         self.is_core_valence_separated = method.is_core_valence_separated
-        self.is_re = method.is_re
+        self.gs_type = method.gs_type
         self.ndim = 2
         self.extra_terms = []
 
@@ -174,8 +176,8 @@ class AdcMatrix(AdcMatrixlike):
             variant = []
             if self.is_core_valence_separated:
                 variant.append("cvs")
-            if self.is_re:
-                variant.append("re")
+            if self.gs_type != "mp":
+                variant.append(self.gs_type)
             blocks = {
                 block: ppmatrix.block(self.ground_state, block.split("_"),
                                       order=order, intermediates=self.intermediates,

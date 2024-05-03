@@ -45,7 +45,7 @@ class IsrMatrix(AdcMatrixlike):
     }
 
     def __init__(self, method, hf_or_mp, operator, block_orders=None,
-                 re_conv_tol=None, re_max_iter=None):
+                 gs_conv_tol=None, gs_max_iter=None):
         """
         Initialise an ISR matrix of a given one-particle operator
         for the provided ADC method.
@@ -62,10 +62,10 @@ class IsrMatrix(AdcMatrixlike):
         block_orders : optional
             The order of perturbation theory to employ for each matrix block.
             If not set, defaults according to the selected ADC method are chosen.
-        re_conv_tol : float, optional
+        gs_conv_tol : float, optional
             Convergence tolerance for the RE ground state amplitudes
             (default: SCF tolerance).
-        re_max_iter : int, optional
+        gs_max_iter : int, optional
             Maximum number of iterations for the RE ground state amplitudes
             (default: 100).
         """
@@ -74,11 +74,13 @@ class IsrMatrix(AdcMatrixlike):
 
         if isinstance(hf_or_mp, (libadcc.ReferenceState,
                                  libadcc.HartreeFockSolution_i)):
-            if method.is_re:
-                hf_or_mp = LazyRe(hf_or_mp, conv_tol=re_conv_tol,
-                                  max_iter=re_max_iter)
-            else:
+            if method.gs_type == "mp":
                 hf_or_mp = LazyMp(hf_or_mp)
+            elif method.gs_type == "re":
+                hf_or_mp = LazyRe(hf_or_mp, conv_tol=gs_conv_tol,
+                                  max_iter=gs_max_iter)
+            else:
+                raise ValueError(f"Unknown ground state type {method.gs_type}.")
         if not isinstance(hf_or_mp, GroundState):
             raise TypeError("hf_or_mp is not a valid object. It needs to be "
                             "either a Groundstate, a ReferenceState or a "
@@ -99,7 +101,7 @@ class IsrMatrix(AdcMatrixlike):
         self.reference_state = hf_or_mp.reference_state
         self.mospaces = hf_or_mp.reference_state.mospaces
         self.is_core_valence_separated = method.is_core_valence_separated
-        self.is_re = method.is_re
+        self.gs_type = method.gs_type
         self.ndim = 2
         self.extra_terms = []
 
@@ -130,7 +132,6 @@ class IsrMatrix(AdcMatrixlike):
                 variant = "cvs"
             # for RE-ADC we don't need to define a variant, since the usual
             # ADC properties can be used - just with a different ground state
-            # -> skip the self.is_re check
             blocks = [{
                 block: ppbmatrix.block(self.ground_state, op,
                                        block.split("_"), order=order,

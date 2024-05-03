@@ -67,7 +67,7 @@ class TestAdcMatrix(unittest.TestCase):
             refstate = cache.refstate[case]
 
         if "re" in method:
-            matrix = adcc.AdcMatrix(method, refstate, re_conv_tol=1e-15)
+            matrix = adcc.AdcMatrix(method, refstate, gs_conv_tol=1e-15)
         else:
             matrix = adcc.AdcMatrix(method, refstate)
         return matrix, matdata

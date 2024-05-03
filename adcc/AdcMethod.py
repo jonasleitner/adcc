@@ -22,6 +22,11 @@
 ## ---------------------------------------------------------------------
 
 
+# NOTE: in general we probably want 1 variable for the adc_variant (pp/ip/...)
+# 1 for the gs_variant (mp/re/...) and 1 for approximations (cvs/fc/...)
+# not only here but also for test data generation etc
+
+
 def get_valid_methods():
     valid_prefixes = ["cvs", "re"]
     valid_bases = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
@@ -43,7 +48,12 @@ class AdcMethod:
         self.__base_method = split[-1]
         split = split[:-1]
         self.is_core_valence_separated = "cvs" in split
-        self.is_re = "re" in split
+
+        # ground state
+        if "re" in split:
+            self.gs_type = "re"
+        else:
+            self.gs_type = "mp"
 
         try:
             if self.__base_method == "adc2x":
@@ -58,20 +68,24 @@ class AdcMethod:
         Return an equivalent method, where only the level is changed
         (e.g. calling this on a CVS method returns a CVS method)
         """
+        method = ""
         if self.is_core_valence_separated:
-            return AdcMethod("cvs-adc" + str(newlevel))
-        elif self.is_re:
-            return AdcMethod(f"re-adc{newlevel}")
+            method += "cvs-"
+        if self.gs_type == "mp":
+            method += "adc"
         else:
-            return AdcMethod("adc" + str(newlevel))
+            method += f"{self.gs_type}-adc"
+        return AdcMethod(method + str(newlevel))
 
     @property
     def name(self):
-        method = self.__base_method
-        if self.is_re:
-            method = "re-" + method
+        method = ""
         if self.is_core_valence_separated:
-            method = "cvs-" + method
+            method += "cvs-"
+        if self.gs_type == "mp":
+            method += self.__base_method
+        else:
+            method += f"{self.gs_type}-{self.__base_method}"
         return method
 
     @property

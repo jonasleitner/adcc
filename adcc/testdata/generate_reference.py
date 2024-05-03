@@ -122,7 +122,7 @@ def dump_h2o_sto3g():  # H2O restricted
     dump_method(case, "adc2x", kwargs, spec="fv")
     dump_method(case, "adc2x", kwargs, spec="fv-cvs")
 
-    kwargs = {"n_singlets": 10, "n_triplets": 10, "re_conv_tol": 1e-15}
+    kwargs = {"n_singlets": 10, "n_triplets": 10, "gs_conv_tol": 1e-15}
     dump_all(case, kwargs, spec="re")
 
 
@@ -132,7 +132,7 @@ def dump_h2o_def2tzvp():  # H2O restricted
     dump_all("h2o_def2tzvp", kwargs, spec="gen")
     dump_all("h2o_def2tzvp", kwargs, spec="cvs")
 
-    kwargs["re_conv_tol"] = 1e-15
+    kwargs["gs_conv_tol"] = 1e-15
     dump_all("h2o_def2tzvp", kwargs, spec="re")
 
 
@@ -149,7 +149,7 @@ def dump_cn_sto3g():  # CN unrestricted
     dump_method(case, "adc2x", {"n_states": 4, "n_guess_singles": 8}, spec="fv")
     dump_method(case, "adc2x", {"n_states": 4}, spec="fv-cvs")
 
-    kwargs = {"n_states": 8, "n_guess_singles": 10, "re_conv_tol": 1e-15}
+    kwargs = {"n_states": 8, "n_guess_singles": 10, "gs_conv_tol": 1e-15}
     dump_all("cn_sto3g", kwargs, spec="re")
 
 
@@ -159,8 +159,8 @@ def dump_cn_ccpvdz():  # CN unrestricted
     dump_all("cn_ccpvdz", kwargs, overwrite, spec="gen")
     dump_all("cn_ccpvdz", kwargs, spec="cvs")
 
-    kwargs["re_conv_tol"] = 1e-15
-    overwrite["adc1"]["re_conv_tol"] = 1e-15
+    kwargs["gs_conv_tol"] = 1e-15
+    overwrite["adc1"]["gs_conv_tol"] = 1e-15
     dump_all("cn_ccpvdz", kwargs, overwrite, spec="re")
 
 
