@@ -26,7 +26,7 @@ import adcc
 import yaml
 import numpy as np
 
-from adcc import AdcMatrix, ExcitedStates, LazyMp, LazyRe, guess_zero, hdf5io
+from adcc import AdcMatrix, ExcitedStates, guess_zero, hdf5io
 from adcc.misc import cached_property
 from adcc.solver import EigenSolverStateBase
 
@@ -37,18 +37,14 @@ class AdcMockState(EigenSolverStateBase):
 
 
 def make_mock_adc_state(refstate, matmethod, kind, reference):
-    if "re" in matmethod:
-        ground_state = LazyRe(refstate, conv_tol=1e-15)
-    else:
-        ground_state = LazyMp(refstate)
-    matrix = AdcMatrix(matmethod, ground_state)
+    matrix = AdcMatrix(matmethod, refstate, gs_conv_tol=1e-15)
 
     # Number of full state results
     n_full = len(reference[kind]["eigenvectors_singles"])
 
     state = AdcMockState(matrix)
     state.method = matrix.method
-    state.ground_state = ground_state
+    state.ground_state = matrix.ground_state
     state.reference_state = refstate
     state.kind = kind if kind != "state" else "any"
     state.eigenvalues = reference[kind]["eigenvalues"][:n_full]

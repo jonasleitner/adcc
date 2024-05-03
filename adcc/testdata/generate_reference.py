@@ -36,14 +36,16 @@ sys.path.insert(0, join(dirname(__file__), "adcc-testdata"))
 import adcctestdata as atd  # noqa: E402
 
 
-def dump_all(case, kwargs, kwargs_overwrite={}, spec="gen", generator="adcc"):
-    assert spec in ["gen", "cvs", "re"]
+def dump_all(case, kwargs, kwargs_overwrite={}, spec="gen", gs_type="mp",
+             generator="adcc"):
+    assert spec in ["gen", "cvs"]
+    assert gs_type in ["mp", "re"]
     for method in ["adc0", "adc1", "adc2", "adc2x", "adc3"]:
         kw = kwargs_overwrite.get(method, kwargs)
-        dump_method(case, method, kw, spec, generator=generator)
+        dump_method(case, method, kw, spec, gs_type, generator=generator)
 
 
-def dump_method(case, method, kwargs, spec, generator="adcc"):
+def dump_method(case, method, kwargs, spec, gs_type, generator="adcc"):
     h5file = case + "_hfdata.hdf5"
     if not os.path.isfile(h5file):
         raise ValueError("HfData not found: " + h5file)
@@ -55,12 +57,6 @@ def dump_method(case, method, kwargs, spec, generator="adcc"):
         dumpfunction = dump_reference_adcc
         hfdata = adcc.DataHfProvider(h5py.File(h5file, "r"))
 
-    is_re = "re" in spec
-    if is_re:  # no special arguments needed for re -> use cvs / fc or whatever
-        spec = spec.replace("re", "").strip("-")
-        if not spec:
-            spec = "gen"
-
     # Get dictionary of parameters for the reference cases.
     refcases = ast.literal_eval(hfdata.data["reference_cases"][()].decode())
     kwargs = dict(kwargs)
@@ -69,24 +65,25 @@ def dump_method(case, method, kwargs, spec, generator="adcc"):
     else:
         kwargs.update(refcases[spec])
 
-    fullmethod = method
-    if is_re:
-        fullmethod = f"re-{fullmethod}"
+    fullmethod = ""
     if "cvs" in spec:
-        fullmethod = "cvs-" + fullmethod
+        fullmethod += "cvs-"
+    if gs_type != "mp":
+        fullmethod += f"{gs_type}-"
+    fullmethod += method
 
     prefix = ""
     if spec != "gen":
         prefix = spec.replace("-", "_") + "_"
-    if is_re:
-        adc_tree = prefix.replace("_", "-") + "re-" + method
+    if gs_type != "mp":
+        adc_tree = prefix.replace("_", "-") + gs_type + "-" + method
         gs_tree = prefix.replace("_", "-") + "re"
     else:
         adc_tree = prefix.replace("_", "-") + method
         gs_tree = prefix.replace("_", "-") + "mp"
 
-    if is_re:  # need to add it back for filename
-        prefix += "re_"
+    if gs_type != "mp":  # add gs_type for the filename
+        prefix += gs_type + "_"
 
     if generator == "atd":
         dumpfile = "{}_reference_{}{}.hdf5".format(case, prefix, method)
@@ -117,13 +114,13 @@ def dump_h2o_sto3g():  # H2O restricted
 
     case = "h2o_sto3g"  # Just ADC(2) and ADC(2)-x
     kwargs = {"n_singlets": 3, "n_triplets": 3}
-    dump_method(case, "adc2", kwargs, spec="fc")
-    dump_method(case, "adc2", kwargs, spec="fc-fv")
-    dump_method(case, "adc2x", kwargs, spec="fv")
-    dump_method(case, "adc2x", kwargs, spec="fv-cvs")
+    dump_method(case, "adc2", kwargs, spec="fc", gs_type="mp")
+    dump_method(case, "adc2", kwargs, spec="fc-fv", gs_type="mp")
+    dump_method(case, "adc2x", kwargs, spec="fv", gs_type="mp")
+    dump_method(case, "adc2x", kwargs, spec="fv-cvs", gs_type="mp")
 
     kwargs = {"n_singlets": 10, "n_triplets": 10, "gs_conv_tol": 1e-15}
-    dump_all(case, kwargs, spec="re")
+    dump_all(case, kwargs, gs_type="re")
 
 
 def dump_h2o_def2tzvp():  # H2O restricted
@@ -133,7 +130,7 @@ def dump_h2o_def2tzvp():  # H2O restricted
     dump_all("h2o_def2tzvp", kwargs, spec="cvs")
 
     kwargs["gs_conv_tol"] = 1e-15
-    dump_all("h2o_def2tzvp", kwargs, spec="re")
+    dump_all("h2o_def2tzvp", kwargs, gs_type="re")
 
 
 def dump_cn_sto3g():  # CN unrestricted
@@ -143,14 +140,15 @@ def dump_cn_sto3g():  # CN unrestricted
     # Just ADC(2) and ADC(2)-x for the other methods
     case = "cn_sto3g"
     dump_method(case, "adc2", {"n_states": 4, "n_guess_singles": 12,
-                               "max_subspace": 30}, spec="fc")
+                               "max_subspace": 30}, spec="fc", gs_type="mp")
     dump_method(case, "adc2", {"n_states": 4, "n_guess_singles": 14,
-                               "max_subspace": 30}, spec="fc-fv")
-    dump_method(case, "adc2x", {"n_states": 4, "n_guess_singles": 8}, spec="fv")
-    dump_method(case, "adc2x", {"n_states": 4}, spec="fv-cvs")
+                               "max_subspace": 30}, spec="fc-fv", gs_type="mp")
+    dump_method(case, "adc2x", {"n_states": 4, "n_guess_singles": 8}, spec="fv",
+                gs_type="mp")
+    dump_method(case, "adc2x", {"n_states": 4}, spec="fv-cvs", gs_type="mp")
 
     kwargs = {"n_states": 8, "n_guess_singles": 10, "gs_conv_tol": 1e-15}
-    dump_all("cn_sto3g", kwargs, spec="re")
+    dump_all("cn_sto3g", kwargs, gs_type="re")
 
 
 def dump_cn_ccpvdz():  # CN unrestricted
@@ -161,7 +159,7 @@ def dump_cn_ccpvdz():  # CN unrestricted
 
     kwargs["gs_conv_tol"] = 1e-15
     overwrite["adc1"]["gs_conv_tol"] = 1e-15
-    dump_all("cn_ccpvdz", kwargs, overwrite, spec="re")
+    dump_all("cn_ccpvdz", kwargs, overwrite, gs_type="re")
 
 
 def dump_hf3_631g():  # HF triplet unrestricted (spin-flip)
@@ -172,23 +170,23 @@ def dump_h2s_sto3g():
     case = "h2s_sto3g"
     kwargs = {"n_singlets": 3, "n_triplets": 3}
 
-    dump_method(case, "adc2", kwargs, spec="fc-cvs")
-    dump_method(case, "adc2x", kwargs, spec="fc-fv-cvs")
+    dump_method(case, "adc2", kwargs, spec="fc-cvs", gs_type="mp")
+    dump_method(case, "adc2x", kwargs, spec="fc-fv-cvs", gs_type="mp")
 
 
 def dump_h2s_6311g():
     case = "h2s_6311g"
     kwargs = {"n_singlets": 3, "n_triplets": 3}
     for spec in ["gen", "fc", "fv", "fc-fv"]:
-        dump_method(case, "adc2", kwargs, spec=spec)
+        dump_method(case, "adc2", kwargs, spec=spec, gs_type="mp")
 
     kwargs = {"n_singlets": 3, "n_triplets": 3, "n_guess_singles": 6,
               "max_subspace": 60}
     for spec in ["fv-cvs", "fc-cvs", "fc-fv-cvs"]:
-        dump_method(case, "adc2x", kwargs, spec=spec)
+        dump_method(case, "adc2x", kwargs, spec=spec, gs_type="mp")
 
     kwargs["n_guess_singles"] = 8
-    dump_method(case, "adc2x", kwargs, spec="cvs")
+    dump_method(case, "adc2x", kwargs, spec="cvs", gs_type="mp")
 
 
 def dump_methox_sto3g():  # (R)-2-methyloxirane

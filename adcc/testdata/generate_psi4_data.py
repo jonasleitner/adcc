@@ -139,6 +139,7 @@ def dump_remp_results(molecule, basis, remp_A):
 
     # also generate adcc data for consistency tests
     hf = adcc.ReferenceState(wfn)
+    assert not remp_A  # REMP ground state not implemented yet -> use RE for now
     re = adcc.LazyRe(hf, conv_tol=1e-15)
     ret["remp_adcc_energy"] = re.energy(2)
     return name, ret

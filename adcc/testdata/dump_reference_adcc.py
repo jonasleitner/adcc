@@ -63,11 +63,16 @@ def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
 
     # obtain ground state
     ground_state = states[0].ground_state
+    # use AdcMethod to figure out cvs and ground state type
+    method = states[0].method
 
-    gs = "mp" if "mp" in gs_tree else "re"
+    if "mp" in gs_tree:
+        gs = "mp"
+    elif "re" in gs_tree:
+        gs = "re"
 
     mp[f"{gs}2/energy"] = ground_state.energy_correction(2)
-    if "cvs" not in method:
+    if not method.is_core_valence_separated:
         # TODO: MP3 energy correction missing in adcc for cvs
         mp[f"{gs}3/energy"] = ground_state.energy_correction(3)
 
@@ -77,8 +82,9 @@ def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
                       compression=8)
     mp.create_dataset(f"{gs}1/df_o1v1", data=ground_state.df("o1v1").to_ndarray(),
                       compression=8)
-    if "cvs" not in method and "re" not in method:
+    if not method.is_core_valence_separated and method.gs_type != "re":
         # TODO: missing in adcc for cvs
+        # and zero for RE
         mp.create_dataset(f"{gs}2/td_o1o1v1v1",
                           data=ground_state.td2("o1o1v1v1").to_ndarray(),
                           compression=8)
@@ -203,7 +209,7 @@ def dump_reference_adcc(data, method, dumpfile, gs_tree="mp",
                                data=np.asarray(eigenvectors_doubles))
 
         # TODO State-to-state properties not implemented for CVS
-        if "cvs" not in method:
+        if not method.is_core_valence_separated:
             s2s = adc.create_group(kind + "/state_to_state")
             for ifrom in range(n_states - 1):
                 state2state = State2States(state, initial=ifrom)
