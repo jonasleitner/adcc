@@ -30,6 +30,10 @@ See :ref:`frozen-spaces` for details.
 Calculations with :ref:`polarisable_embedding` and the :ref:`polarisable_continuum`
 for implicit solvation are also supported.
 
+Additionally, :ref:`re-adc` schemes build upon a retaining the excitation degree (RE)
+ground state are available through third-order of perturbation theory.
+
+
 General ADC(n) calculations
 ---------------------------
 General ADC(n) calculations,
@@ -990,6 +994,62 @@ The last line gives::
    |  Excitation energy includes these corrections:               |
    |    - pcm_ptlr_correction                                     |
    +--------------------------------------------------------------+
+
+
+
+.. _`re-adc`:
+
+RE-ADC(n)
+---------
+Another ground state perturbation theory obtained from Rayleigh-Schrödinger
+perturbation theory is the Retaining the Excitation Degree (RE) perturbation theory.
+It differs from Møller-Plesset (MP) theory by the partitioning of the
+electronic Hamiltonian: MP uses a diagonal zeroth-order Hamiltonian,
+while RE features a block-diagonal and thus
+more complete zeroth-order Hamiltonian. :cite:`Fink2006`
+
+RE-ADC(n) calculations can, for instance, be invoked by calling
+the :func:`adcc.re_adc0`, :func:`adcc.re_adc2` or :func:`adcc.re_adc3` functions
+to perform RE-ADC(0), RE-ADC(2) or RE-ADC(3) calculations, repsectively.
+The RE ground state amplitudes are determined in an iterative procedure, that
+can be controlled through through the parameters ``gs_conv_tol``
+and ``gs_max_iter`` to set the convergence tolerance and the maximum
+number of iterations.
+
+.. code-block:: python
+
+   from pyscf import scf, gto
+   from adcc import re_adc3
+
+   # pyscf rhf calculation
+   mol = gto.M(
+      atom="""
+      O  0.00000000  0.00000000 -0.13209669
+      H  0.00000000  1.43152878  0.97970006
+      H  0.00000000 -1.43152878  0.97970006
+      """,
+      basis="cc-pvtz", symmetry=0, charge=0, spin=0, unit="Bohr"
+   )
+   mf = scf.RHF(mol)
+   mf.conv_tol = 1e-12
+   mf.max_cycle = 150
+   mf.kernel()
+
+   # Run RE-ADC(3) calculation, solving for 2 singlets
+   states = re_adc3(mf, n_singlets=2)
+   print(states.describe())
+
+The output of the last line is::
+
+   +--------------------------------------------------------------+
+   | re-adc3 (re-adc2)                       singlet ,  converged |
+   +--------------------------------------------------------------+
+   |  #        excitation energy     osc str    |v1|^2    |v2|^2  |
+   |          (au)           (eV)                                 |
+   |  0      0.303265      8.252262   0.0377    0.9394   0.06056  |
+   |  1     0.3765005       10.2451   0.0000    0.9417   0.05832  |
+   +--------------------------------------------------------------+
+
 
 Further examples and details
 ----------------------------
