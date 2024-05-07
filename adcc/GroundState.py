@@ -35,7 +35,7 @@ from . import block as b
 class GroundState:
     def __init__(self, hf):
         """
-        Initialise the class dealing with the Møller-Plesset ground state.
+        Base class for ground states.
         """
         if isinstance(hf, libadcc.HartreeFockSolution_i):
             hf = ReferenceState(hf)
@@ -97,7 +97,7 @@ class GroundState:
         if level == 1:
             return self.reference_state.density
         elif level == 2:
-            return self.reference_state.density + self.diffdm(level)
+            return self.reference_state.density + self.second_order_diffdm
         else:
             raise NotImplementedError("Only densities for level 1 and 2"
                                       " are implemented.")
@@ -176,7 +176,7 @@ class GroundState:
     def second_order_dipole_moment(self):
         refstate = self.reference_state
         dipole_integrals = refstate.operators.electric_dipole
-        correction = -np.array([product_trace(comp, self.diffdm(2))
+        correction = -np.array([product_trace(comp, self.second_order_diffdm)
                                 for comp in dipole_integrals])
         return refstate.dipole_moment + correction
 

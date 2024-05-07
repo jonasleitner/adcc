@@ -45,35 +45,9 @@ class LazyRe(GroundState):
         """First order RE ground state singles amplitudes.
            Zero for a block diagonal Fock matrix.
         """
-        raise RuntimeError("The first order RE singles amplitudes vanish for a "
-                           "block diagonal fock matrix. Probably you don't need "
-                           "this tensor.")
-        # can't import on top -> circular import
-        from .solver.conjugate_gradient import conjugate_gradient, default_print
-        from .solver.preconditioner import JacobiPreconditioner
-
-        if space != b.ov:
-            raise NotImplementedError("First order singles not implemented for "
-                                      f"space {space}.")
-        hf = self.reference_state
-
-        # build the right hand side of Ax = b
-        rhs = -hf.fov
-        rhs = AmplitudeVector(ph=rhs)
-
-        # can't use zero guess: divide by 0 in conjugate gradient for canonical
-        # orbital basis -> i think random is better than one guess
-        guess = hf.fov.zeros_like() * 1e-6
-        guess = AmplitudeVector(ph=guess)
-
-        print("\nIterating first order RE singles amplitudes...")
-        t1 = conjugate_gradient(Singles(hf), rhs, guess, callback=default_print,
-                                explicit_symmetrisation=None,
-                                conv_tol=self.conv_tol,
-                                max_iter=self.max_iter,
-                                Pinv=JacobiPreconditioner)
-        t1 = t1.solution.ph
-        return t1
+        raise NotImplementedError("The first order RE singles amplitudes vanish "
+                                  "for a block diagonal fock matrix. Probably you "
+                                  "don't need this tensor.")
 
     @cached_member_function
     def t2(self, space):
@@ -144,34 +118,9 @@ class LazyRe(GroundState):
            Zero as long as the first order singles are 0
            -> Zero for a block diagonal Fock matrix
         """
-        raise RuntimeError("The second order RE doubles amplitudes vanish for a "
-                           "block diagonal fock matrix. Probably you don't need "
-                           "this tensor.")
-        # can't import on top -> circular import
-        from .solver.conjugate_gradient import conjugate_gradient, default_print
-        from .solver.preconditioner import JacobiPreconditioner
-        from .LazyMp import LazyMp
-
-        if space != b.oovv:
-            raise NotImplementedError("Second order doubles not implemented for "
-                                      f"space {space}.")
-        hf = self.reference_state
-        # build the right hand side of Ax = b
-        rhs = hf.oovv.zeros_like()
-        rhs = AmplitudeVector(pphh=rhs)
-        # build a guess for the t-amplitudes: use mp-amplitudes as they
-        # scale N^6 just as the iteration scheme
-        guess = LazyMp(self.reference_state).td2(space)
-        guess = AmplitudeVector(pphh=guess)
-
-        print("\nIterating Second order RE doubles amplitudes...")
-        t2 = conjugate_gradient(Doubles(hf), rhs, guess, callback=default_print,
-                                explicit_symmetrisation=None,
-                                conv_tol=self.conv_tol,
-                                max_iter=self.max_iter,
-                                Pinv=JacobiPreconditioner)
-        t2 = t2.solution.pphh
-        return t2
+        raise NotImplementedError("The second order RE doubles amplitudes vanish "
+                                  "for a block diagonal fock matrix. Probably you "
+                                  "don't need this tensor.")
 
     @cached_member_function
     def energy_correction(self, level=2):
