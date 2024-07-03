@@ -130,12 +130,12 @@ def run_adc(data_or_matrix, n_states=None, kind="any", conv_tol=None,
         these see the description in :py:class:`adcc.ReferenceState`.
 
     gs_conv_tol : float, optional
-        Convergence tolerance to employ in the iterative solver for obtaining
-        the RE ground state amplitudes (default: SCF tolerance)
+        Convergence tolerance for the iterative determination of the
+        RE ground state amplitudes (default: SCF tolerance).
 
     gs_max_iter : int, optional
-        Maximum number of iterations for the RE ground state amplitudes
-        (default: 100).
+        Maximum number of iterations for the iterative determination of the
+        RE ground state amplitudes (default: 100).
 
     environment : bool or list or dict, optional
         The keywords to specify how coupling to an environment model,

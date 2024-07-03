@@ -29,9 +29,22 @@ from . import block as b
 
 
 class LazyRe(GroundState):
+    """
+    Retaining the excitation degree (RE) ground state class.
+
+    Parameters
+    ----------
+    hf : ReferenceState
+        The SCF reference state.
+    conv_tol : float, optional
+        Convergence tolerance for the RE ground state amplitudes
+        (default: SCF tolerance).
+    max_iter : int, optional
+        Maximum number of iterations for the iterative determination of the
+        RE ground state amplitudes (default: 100).
+    """
+
     def __init__(self, hf, conv_tol=None, max_iter=None):
-        """Initialise the retaining the excitation degree (RE) ground state class.
-        """
         if conv_tol is None:
             conv_tol = hf.conv_tol
         self.conv_tol = conv_tol
@@ -81,7 +94,7 @@ class LazyRe(GroundState):
 
     @cached_member_function
     def ts2(self, space):
-        """Second order RE ground state singles amplitudes"""
+        """Second order RE ground state singles amplitudes."""
         from .solver.conjugate_gradient import conjugate_gradient, default_print
         from .solver.preconditioner import JacobiPreconditioner
         from .LazyMp import LazyMp
@@ -114,7 +127,7 @@ class LazyRe(GroundState):
 
     @cached_member_function
     def td2(self, space):
-        """Second order RE ground state doubles amplitudes
+        """Second order RE ground state doubles amplitudes.
            Zero as long as the first order singles are 0
            -> Zero for a block diagonal Fock matrix
         """
@@ -124,7 +137,7 @@ class LazyRe(GroundState):
 
     @cached_member_function
     def energy_correction(self, level=2):
-        """Obtain the RE energy correction at a particular level"""
+        """Obtain the RE energy correction at a particular level."""
         hf = self.reference_state
         if level < 2:
             return 0.0
