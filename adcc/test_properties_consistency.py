@@ -24,19 +24,18 @@ import unittest
 import numpy as np
 
 from numpy.testing import assert_allclose
-from adcc.testdata.cache import cache
 
-from .test_state_densities import ConsistencyRunners
+from .test_state_densities import FullConsistencyRunners
 from pytest import approx
 
 
-class TestMagneticTransitionDipoleMoments(unittest.TestCase, ConsistencyRunners):
+class TestMagneticTransitionDipoleMoments(unittest.TestCase, FullConsistencyRunners):  # noqa E501
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
 
-        refdata = cache.adcc_reference_data[system]
-        state = cache.adcc_states[system][method][kind]
+        refdata = self.refdata[system]
+        state = self.states[system][method][kind]
 
         res_dms = state.transition_magnetic_dipole_moment
         ref = refdata[method][kind]
@@ -46,13 +45,13 @@ class TestMagneticTransitionDipoleMoments(unittest.TestCase, ConsistencyRunners)
         )
 
 
-class TestTransitionDipoleMomentsVelocity(unittest.TestCase, ConsistencyRunners):
+class TestTransitionDipoleMomentsVelocity(unittest.TestCase, FullConsistencyRunners):  # noqa E501
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
 
-        refdata = cache.adcc_reference_data[system]
-        state = cache.adcc_states[system][method][kind]
+        refdata = self.refdata[system]
+        state = self.states[system][method][kind]
 
         res_dms = state.transition_dipole_moment_velocity
         ref = refdata[method][kind]
@@ -62,13 +61,13 @@ class TestTransitionDipoleMomentsVelocity(unittest.TestCase, ConsistencyRunners)
         )
 
 
-class TestRotatoryStrengths(unittest.TestCase, ConsistencyRunners):
+class TestRotatoryStrengths(unittest.TestCase, FullConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         kind = "any" if kind == "state" else kind
 
-        refdata = cache.adcc_reference_data[system]
-        state = cache.adcc_states[system][method][kind]
+        refdata = self.refdata[system]
+        state = self.states[system][method][kind]
 
         res_rots = state.rotatory_strength
         ref_tmdm = refdata[method][kind]["transition_magnetic_dipole_moments"]

@@ -31,100 +31,147 @@ from adcc.backends import run_hf
 from adcc import run_adc
 
 from .misc import assert_allclose_signfix, expand_test_templates
-from .test_state_densities import Runners
+from .test_state_densities import QchemRunners, ConsistencyRunners
 
 from pytest import approx, skip
 
 
-class TestTransitionDipoleMoments(unittest.TestCase, Runners):
+class TestTransitionDipoleMoments(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
-
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
-
-        # For CVS, only consistency tests are performed because
-        # the reference data are erroneous
-        if "cvs" in method:
-            kind = "any" if kind == "state" else kind
-            refdata = cache.adcc_reference_data[system]
-            state = cache.adcc_states[system][method][kind]
-
-        res_tdms = state.transition_dipole_moment
-        ref_tdms = refdata[method][kind]["transition_dipole_moments"]
-        refevals = refdata[method][kind]["eigenvalues"]
-        n_ref = len(state.excitation_vector)
-        for i in range(n_ref):
-            res_tdm = res_tdms[i]
-            ref_tdm = ref_tdms[i]
-            assert state.excitation_energy[i] == refevals[i]
-            res_tdm_norm = np.sum(res_tdm * res_tdm)
-            ref_tdm_norm = np.sum(ref_tdm * ref_tdm)
-            assert res_tdm_norm == approx(ref_tdm_norm, abs=1e-5)
-            assert_allclose_signfix(res_tdm, ref_tdm, atol=1e-5)
+        run_transition_dipole_moments(self.refdata, self.states, system, method,
+                                      self.resolve_kind(kind))
 
 
-class TestOscillatorStrengths(unittest.TestCase, Runners):
+class TestTransitionDipoleMomentsConsistency(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
-
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
-
-        # For CVS, only consistency tests are performed because
-        # the reference data are erroneous
-        if "cvs" in method:
-            kind = "any" if kind == "state" else kind
-            refdata = cache.adcc_reference_data[system]
-            state = cache.adcc_states[system][method][kind]
-
-        res_oscs = state.oscillator_strength
-        ref_tdms = refdata[method][kind]["transition_dipole_moments"]
-        refevals = refdata[method][kind]["eigenvalues"]
-        n_ref = len(state.excitation_vector)
-        for i in range(n_ref):
-            assert state.excitation_energy[i] == refevals[i]
-            ref_tdm_norm = np.sum(ref_tdms[i] * ref_tdms[i])
-            assert res_oscs[i] == approx(2. / 3. * ref_tdm_norm * refevals[i])
+        run_transition_dipole_moments(self.refdata, self.states, system, method,
+                                      self.resolve_kind(kind))
 
 
-class TestStateDipoleMoments(unittest.TestCase, Runners):
+def run_transition_dipole_moments(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
+
+    refdata = refdata[system]
+    state = state[system][method][kind]
+
+    # For CVS, only consistency tests are performed because
+    # the reference data are erroneous
+    if "cvs" in method:
+        kind = "any" if kind == "state" else kind
+        refdata = cache.adcc_reference_data[system]
+        state = cache.adcc_states[system][method][kind]
+
+    res_tdms = state.transition_dipole_moment
+    ref_tdms = refdata[method][kind]["transition_dipole_moments"]
+    refevals = refdata[method][kind]["eigenvalues"]
+    n_ref = len(state.excitation_vector)
+    for i in range(n_ref):
+        res_tdm = res_tdms[i]
+        ref_tdm = ref_tdms[i]
+        assert state.excitation_energy[i] == refevals[i]
+        res_tdm_norm = np.sum(res_tdm * res_tdm)
+        ref_tdm_norm = np.sum(ref_tdm * ref_tdm)
+        assert res_tdm_norm == approx(ref_tdm_norm, abs=1e-5)
+        assert_allclose_signfix(res_tdm, ref_tdm, atol=1e-5)
+
+
+class TestOscillatorStrengths(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
-
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
-
-        res_dms = state.state_dipole_moment
-        ref = refdata[method][kind]
-        n_ref = len(state.excitation_vector)
-        assert_allclose(res_dms, ref["state_dipole_moments"][:n_ref], atol=1e-4)
+        run_oscillator_strengths(self.refdata, self.states, system, method,
+                                 self.resolve_kind(kind))
 
 
-class TestState2StateTransitionDipoleMoments(unittest.TestCase, Runners):
+class TestOscillatorStrengthsConsistency(unittest.TestCase, ConsistencyRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
-        if "cvs" in method:
-            skip("State-to-state transition dms not yet implemented for CVS.")
+        run_oscillator_strengths(self.refdata, self.states, system, method,
+                                 self.resolve_kind(kind))
 
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
 
-        state_to_state = refdata[method][kind]["state_to_state"]
-        refevals = refdata[method][kind]["eigenvalues"]
-        for i, exci in enumerate(state.excitations):
-            assert exci.excitation_energy == refevals[i]
-            fromi_ref = state_to_state[f"from_{i}"]["transition_dipole_moments"]
+def run_oscillator_strengths(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
 
-            state2state = State2States(state, initial=i)
-            for ii, j in enumerate(range(i + 1, state.size)):
-                assert state.excitation_energy[j] == refevals[j]
-                assert_allclose_signfix(state2state.transition_dipole_moment[ii],
-                                        fromi_ref[ii], atol=1e-4)
+    refdata = refdata[system]
+    state = state[system][method][kind]
+
+    # For CVS, only consistency tests are performed because
+    # the reference data are erroneous
+    if "cvs" in method:
+        kind = "any" if kind == "state" else kind
+        refdata = cache.adcc_reference_data[system]
+        state = cache.adcc_states[system][method][kind]
+
+    res_oscs = state.oscillator_strength
+    ref_tdms = refdata[method][kind]["transition_dipole_moments"]
+    refevals = refdata[method][kind]["eigenvalues"]
+    n_ref = len(state.excitation_vector)
+    for i in range(n_ref):
+        assert state.excitation_energy[i] == refevals[i]
+        ref_tdm_norm = np.sum(ref_tdms[i] * ref_tdms[i])
+        assert res_oscs[i] == approx(2. / 3. * ref_tdm_norm * refevals[i])
+
+
+class TestStateDipoleMoments(unittest.TestCase, QchemRunners):
+    def base_test(self, system, method, kind):
+        run_state_dipole_moments(self.refdata, self.states, system, method,
+                                 self.resolve_kind(kind))
+
+
+class TestStateDipoleMomentsConsistency(unittest.TestCase, ConsistencyRunners):
+    def base_test(self, system, method, kind):
+        run_state_dipole_moments(self.refdata, self.states, system, method,
+                                 self.resolve_kind(kind))
+
+
+def run_state_dipole_moments(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
+
+    refdata = refdata[system]
+    state = state[system][method][kind]
+
+    res_dms = state.state_dipole_moment
+    ref = refdata[method][kind]
+    n_ref = len(state.excitation_vector)
+    assert_allclose(res_dms, ref["state_dipole_moments"][:n_ref], atol=1e-4)
+
+
+class TestState2StateTransitionDipoleMoments(unittest.TestCase, QchemRunners):
+    def base_test(self, system, method, kind):
+        run_state2state_transition_dipole_moments(
+            self.refdata, self.states, system, method, self.resolve_kind(kind)
+        )
+
+
+class TestState2StateTransitionDipoleMomentsConsistency(unittest.TestCase,
+                                                        ConsistencyRunners):
+    def base_test(self, system, method, kind):
+        run_state2state_transition_dipole_moments(
+            self.refdata, self.states, system, method, self.resolve_kind(kind)
+        )
+
+
+def run_state2state_transition_dipole_moments(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
+    if "cvs" in method:
+        skip("State-to-state transition dms not yet implemented for CVS.")
+
+    refdata = refdata[system]
+    state = state[system][method][kind]
+
+    state_to_state = refdata[method][kind]["state_to_state"]
+    refevals = refdata[method][kind]["eigenvalues"]
+    for i, exci in enumerate(state.excitations):
+        assert exci.excitation_energy == refevals[i]
+        fromi_ref = state_to_state[f"from_{i}"]["transition_dipole_moments"]
+
+        state2state = State2States(state, initial=i)
+        for ii, j in enumerate(range(i + 1, state.size)):
+            assert state.excitation_energy[j] == refevals[j]
+            assert_allclose_signfix(state2state.transition_dipole_moment[ii],
+                                    fromi_ref[ii], atol=1e-4)
 
 
 basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
-methods = [m for bm in basemethods for m in [bm, "cvs_" + bm]]
+methods = [m for bm in basemethods for m in [bm, "cvs_" + bm, "re_" + bm]]
 
 
 @expand_test_templates(methods)

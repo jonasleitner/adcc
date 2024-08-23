@@ -33,11 +33,11 @@ from pytest import approx, skip
 basemethods = ["adc0", "adc1", "adc2", "adc2x", "adc3"]
 methods = [m for bm in basemethods for m in [bm, "cvs_" + bm]]
 
-# methods for consistency tests: for re-adc we only have adcc reference data
-consistency_methods = methods + ["re-" + m for m in basemethods]
+# additional methods for which only adcc reference data exists
+consistency_methods = ["re-" + m for m in basemethods]
 
 
-class BaseRunners():
+class TemplateRunners():
     def base_test(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -58,6 +58,11 @@ class BaseRunners():
 
     def template_cn_ccpvdz(self, method):
         self.base_test("cn_ccpvdz", method, "state")
+
+
+class SpecialRunners:
+    def base_test(self, *args, **kwargs):
+        raise NotImplementedError
 
     # expand the spin_flip tests, since we don't run them for cvs and re
     def test_hf3_631g_spin_flip_adc0(self):
@@ -111,39 +116,69 @@ class BaseRunners():
 
 # Inherit from this class to run tests for methods against Qchem reference data
 @expand_test_templates(methods)
-class Runners(BaseRunners):
-    pass
+class QchemRunners(TemplateRunners, SpecialRunners):
+    refdata = cache.reference_data
+    states = cache.adc_states
+
+    def resolve_kind(self, kind):
+        return kind
 
 
-# Inherit from this class to run tests against adcc reference data
+# Inherit from this class to run tests against adcc reference data for methods
+# for which no qchem reference data is available
 @expand_test_templates(consistency_methods)
-class ConsistencyRunners(BaseRunners):
-    pass
+class ConsistencyRunners(TemplateRunners):
+    refdata = cache.adcc_reference_data
+    states = cache.adcc_states
+
+    def resolve_kind(self, kind):
+        return "any" if kind == "state" else kind
 
 
-class TestStateDiffDm(unittest.TestCase, Runners):
+# Inherit from this class to run tests against adcc reference data for all methods
+@expand_test_templates(methods + consistency_methods)
+class FullConsistencyRunners(TemplateRunners, SpecialRunners):
+    refdata = cache.adcc_reference_data
+    states = cache.adcc_states
+
+    def resolve_kind(self, kind):
+        return "any" if kind == "state" else kind
+
+
+class TestStateDiffDm(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
+        run_state_diff_dm(self.refdata, self.states, system, method,
+                          self.resolve_kind(kind))
 
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
 
-        refdens_a = refdata[method][kind]["state_diffdm_bb_a"]
-        refdens_b = refdata[method][kind]["state_diffdm_bb_b"]
-        refevals = refdata[method][kind]["eigenvalues"]
-        for i in range(len(state.excitation_vector)):
-            # Check that we are talking about the same state when
-            # comparing reference and computed
-            assert state.excitation_energy[i] == refevals[i]
+class TestStateDiffDmConsistency(unittest.TestCase, ConsistencyRunners):
+    def base_test(self, system, method, kind):
+        run_state_diff_dm(self.refdata, self.states, system, method,
+                          self.resolve_kind(kind))
 
-            dm_ao_a, dm_ao_b = state.state_diffdm[i].to_ao_basis()
-            assert dm_ao_a.to_ndarray() == approx(refdens_a[i])
-            assert dm_ao_b.to_ndarray() == approx(refdens_b[i])
+
+def run_state_diff_dm(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
+
+    refdata = refdata[system]
+    state = state[system][method][kind]
+
+    refdens_a = refdata[method][kind]["state_diffdm_bb_a"]
+    refdens_b = refdata[method][kind]["state_diffdm_bb_b"]
+    refevals = refdata[method][kind]["eigenvalues"]
+    for i in range(len(state.excitation_vector)):
+        # Check that we are talking about the same state when
+        # comparing reference and computed
+        assert state.excitation_energy[i] == refevals[i]
+
+        dm_ao_a, dm_ao_b = state.state_diffdm[i].to_ao_basis()
+        assert dm_ao_a.to_ndarray() == approx(refdens_a[i])
+        assert dm_ao_b.to_ndarray() == approx(refdens_b[i])
 
 
 # For the ground-to-excited state tdm, only consistency tests are
 # performed due to the changes in transition_dm.py
-class TestStateGroundToExcitedTdm(unittest.TestCase, ConsistencyRunners):
+class TestStateGroundToExcitedTdm(unittest.TestCase, FullConsistencyRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
 
@@ -164,30 +199,43 @@ class TestStateGroundToExcitedTdm(unittest.TestCase, ConsistencyRunners):
             assert dm_ao_b.to_ndarray() == approx(refdens_b[i])
 
 
-class TestStateExcitedToExcitedTdm(unittest.TestCase, Runners):
+class TestStateExcitedToExcitedTdm(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
-        method = method.replace("_", "-")
-        if "cvs" in method:
-            skip("State-to-state transition dms not yet implemented for CVS.")
-        refdata = cache.reference_data[system]
-        state = cache.adc_states[system][method][kind]
-        state_to_state = refdata[method][kind]["state_to_state"]
-        refevals = refdata[method][kind]["eigenvalues"]
+        run_state_excited_to_excited_tdm(
+            self.refdata, self.states, system, method, self.resolve_kind(kind)
+        )
 
-        for i, exci in enumerate(state.excitations):
-            # Check that we are talking about the same state when
-            # comparing reference and computed
-            assert exci.excitation_energy == refevals[i]
-            fromi_ref_a = state_to_state[f"from_{i}"]["state_to_excited_tdm_bb_a"]
-            fromi_ref_b = state_to_state[f"from_{i}"]["state_to_excited_tdm_bb_b"]
 
-            state2state = State2States(state, initial=i)
-            for ii, j in enumerate(range(i + 1, state.size)):
-                assert state.excitation_energy[j] == refevals[j]
-                ee_ref = refevals[j] - refevals[i]
-                assert state2state.excitation_energy[ii] == ee_ref
-                dm_ao_a, dm_ao_b = state2state.transition_dm[ii].to_ao_basis()
-                np.testing.assert_allclose(fromi_ref_a[ii],
-                                           dm_ao_a.to_ndarray(), atol=1e-4)
-                np.testing.assert_allclose(fromi_ref_b[ii],
-                                           dm_ao_b.to_ndarray(), atol=1e-4)
+class TestStateExcitedToExcitedTdmConsistency(unittest.TestCase, ConsistencyRunners):  # noqa E501
+    def base_test(self, system, method, kind):
+        run_state_excited_to_excited_tdm(
+            self.refdata, self.states, system, method, self.resolve_kind(kind)
+        )
+
+
+def run_state_excited_to_excited_tdm(refdata, state, system, method, kind):
+    method = method.replace("_", "-")
+    if "cvs" in method:
+        skip("State-to-state transition dms not yet implemented for CVS.")
+    refdata = refdata[system]
+    state = state[system][method][kind]
+    state_to_state = refdata[method][kind]["state_to_state"]
+    refevals = refdata[method][kind]["eigenvalues"]
+
+    for i, exci in enumerate(state.excitations):
+        # Check that we are talking about the same state when
+        # comparing reference and computed
+        assert exci.excitation_energy == refevals[i]
+        fromi_ref_a = state_to_state[f"from_{i}"]["state_to_excited_tdm_bb_a"]
+        fromi_ref_b = state_to_state[f"from_{i}"]["state_to_excited_tdm_bb_b"]
+
+        state2state = State2States(state, initial=i)
+        for ii, j in enumerate(range(i + 1, state.size)):
+            assert state.excitation_energy[j] == refevals[j]
+            ee_ref = refevals[j] - refevals[i]
+            assert state2state.excitation_energy[ii] == ee_ref
+            dm_ao_a, dm_ao_b = state2state.transition_dm[ii].to_ao_basis()
+            np.testing.assert_allclose(fromi_ref_a[ii],
+                                       dm_ao_a.to_ndarray(), atol=1e-4)
+            np.testing.assert_allclose(fromi_ref_b[ii],
+                                       dm_ao_b.to_ndarray(), atol=1e-4)

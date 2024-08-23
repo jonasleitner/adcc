@@ -27,10 +27,10 @@ from numpy.testing import assert_allclose
 from adcc.testdata.cache import cache
 from adcc.OneParticleOperator import OneParticleOperator
 from adcc.ExcitedStates import EnergyCorrection
-from .test_state_densities import Runners
+from .test_state_densities import QchemRunners
 
 
-class TestExcitationView(unittest.TestCase, Runners):
+class TestExcitationView(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         state = cache.adc_states[system][method][kind]
@@ -60,7 +60,7 @@ class TestExcitationView(unittest.TestCase, Runners):
                     assert_allclose(ref, res)
 
 
-class TestCustomExcitationEnergyCorrections(unittest.TestCase, Runners):
+class TestCustomExcitationEnergyCorrections(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         state = cache.adc_states[system][method][kind]
@@ -99,7 +99,7 @@ class TestCustomExcitationEnergyCorrections(unittest.TestCase, Runners):
         state_corrected2.describe()
 
 
-class TestDataFrameExport(unittest.TestCase, Runners):
+class TestDataFrameExport(unittest.TestCase, QchemRunners):
     def base_test(self, system, method, kind):
         method = method.replace("_", "-")
         state = cache.adc_states[system][method][kind]
